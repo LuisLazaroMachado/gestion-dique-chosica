@@ -2,6 +2,8 @@
 
 Decisiones tomadas por Claude al construir el sistema, dentro de lo autorizado por el equipo ("tú decides la arquitectura; si falta un dato, estímalo y etiquétalo"). **No cambian la fórmula, los estados, los roles ni el alcance.** Las marcadas con ⚠ requieren revisión del equipo o de un especialista.
 
+**Estado de aprobación (20-11-2026):** el equipo revisó este documento y lo aprobó. Con eso quedan aceptados para uso operativo el formato provisional de código `PDC-NNNN`, el catálogo de urgencia `Normal / Atención / Urgente` y el uso de ubicaciones, inspecciones de referencia y exposición **estimadas** (siempre etiquetadas). La aprobación del equipo **no sustituye** la validación técnica pendiente: los criterios D/C/A por tipología, el método de exposición y cualquier simulación más allá del nivel A siguen requiriendo revisión de un especialista, y las ubicaciones estimadas deben verificarse en campo.
+
 ## 1. Arquitectura y tecnología
 | Pieza | Elección | Motivo |
 |---|---|---|
