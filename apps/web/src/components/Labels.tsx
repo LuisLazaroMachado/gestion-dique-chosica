@@ -1,5 +1,5 @@
 import { Badge, Tooltip } from '@mantine/core';
-import { DATA_LABEL_TEXT, ORIGIN_HELP, ORIGIN_LABELS, STRUCTURE_TYPE_LABELS, type StructureType } from '@dique/shared';
+import { DATA_LABEL_TEXT, MACHINERY_ACCESS_COLORS, MACHINERY_ACCESS_LABELS, ORIGIN_HELP, ORIGIN_LABELS, STRUCTURE_TYPE_LABELS, type StructureType } from '@dique/shared';
 
 // Colores por dimensión. Cada dimensión tiene su propia leyenda (estado físico ≠ intervención ≠ tipo).
 export const PHYSICAL_COLORS: Record<string, string> = {
@@ -42,6 +42,11 @@ export function DataLabel({ value, size = 'sm' }: { value: string | null | undef
       <Badge size={size} color={LABEL_COLORS[value] ?? 'gray'} variant="dot">{DATA_LABEL_TEXT[value] ?? value}</Badge>
     </Tooltip>
   );
+}
+
+export function MachineryBadge({ value }: { value: string | null | undefined }) {
+  if (!value) return <Badge variant="outline" color="gray" radius="sm">Maquinaria: sin dato</Badge>;
+  return <Badge color={MACHINERY_ACCESS_COLORS[value] ?? 'gray'} variant="filled" radius="sm">Maquinaria: {MACHINERY_ACCESS_LABELS[value] ?? value}</Badge>;
 }
 
 export function OriginBadge({ value }: { value: string }) {

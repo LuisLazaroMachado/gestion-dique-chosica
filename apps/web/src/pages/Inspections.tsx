@@ -6,7 +6,7 @@ import {
   Textarea, TextInput, Title,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import { ACCESS_LABELS, EVIDENCE_TYPE_LABELS, SCALE_DESCRIPTORS, SCALE_NAMES, VALIDATION_LABELS, type EvidenceType } from '@dique/shared';
+import { ACCESS_LABELS, ACCESS_OBSTACLE_LABELS, MACHINERY_ACCESS_LABELS, EVIDENCE_TYPE_LABELS, SCALE_DESCRIPTORS, SCALE_NAMES, VALIDATION_LABELS, type EvidenceType } from '@dique/shared';
 import { PageHeader } from '../components/Help';
 import { api, ApiError, evidenceObjectUrl } from '../api';
 import { DataLabel, PhysicalBadge, fmtDateTime } from '../components/Labels';
@@ -116,9 +116,14 @@ export function InspectionDetailPage() {
         <Score k="D" value={i.damageScore} /><Score k="C" value={i.cloggingScore} /><Score k="A" value={i.activeProcessScore} />
       </SimpleGrid>
       <Card withBorder>
-        <SimpleGrid cols={{ base: 1, md: 3 }}>
+        <SimpleGrid cols={{ base: 1, md: 4 }}>
           <div><Text size="xs" c="dimmed">Estado observado</Text><PhysicalBadge value={i.physicalStatus} /></div>
           <div><Text size="xs" c="dimmed">¿Cómo fue llegar?</Text><Text size="sm">{ACCESS_LABELS[i.accessStatus] ?? i.accessStatus}{i.accessNotes ? `: ${i.accessNotes}` : ''}</Text></div>
+          <div><Text size="xs" c="dimmed">¿Llega maquinaria?</Text>
+            <Text size="sm">{i.machineryAccess ? MACHINERY_ACCESS_LABELS[i.machineryAccess] : 'Sin dato'}</Text>
+            {i.accessObstacles?.length > 0 && <Text size="xs" c="dimmed">Obstáculos: {i.accessObstacles.map((o: string) => ACCESS_OBSTACLE_LABELS[o] ?? o).join(', ')}</Text>}
+            {i.vehiclePoint && <Text size="xs"><a href={`https://www.google.com/maps?q=${i.vehiclePoint.lat},${i.vehiclePoint.lon}`} target="_blank" rel="noreferrer">Último punto en vehículo</a>{i.vehiclePoint.mock ? ' (ubicación simulada)' : ''}</Text>}
+          </div>
           <div><Text size="xs" c="dimmed">Ubicación del celular al inspeccionar</Text>
             <Text size="sm">{i.deviceLocation ? `${i.deviceLocation.lat.toFixed(6)}, ${i.deviceLocation.lon.toFixed(6)}` : 'No registrada'}
               {i.deviceLocation?.mock && <Badge color="grape" ml={6} size="sm">Ubicación simulada</Badge>}</Text></div>

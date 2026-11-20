@@ -53,6 +53,8 @@ export function mapInspection(r: Record<string, any>) {
     validationStatus: r.validation_status, validationNotes: r.validation_notes,
     validatedBy: r.validated_by, validatedAt: r.validated_at,
     deviceLocation: r.dev_lat == null ? null : { lat: r.dev_lat, lon: r.dev_lon, mock: r.device_location_mock, accuracyM: r.device_accuracy_m },
+    machineryAccess: r.machinery_access ?? null, accessObstacles: r.access_obstacles ?? [],
+    vehiclePoint: r.veh_lat == null ? null : { lat: r.veh_lat, lon: r.veh_lon, mock: r.vehicle_point_mock },
     deviceRecordId: r.device_record_id, dataLabel: r.data_label, sourceReference: r.source_reference,
     createdAt: r.created_at, updatedAt: r.updated_at,
   };

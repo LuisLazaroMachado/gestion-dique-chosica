@@ -31,5 +31,6 @@
 | 1.1 | 19-11-2026 | Aclaraciones de implementación (ver `02_DECISIONES_APROBADAS.md`), hallazgos de fuentes primarias y paquete movido a `docs/especificacion/`. Autor: Claude por encargo del equipo. Impacto: ninguno sobre fórmula, estados, roles ni alcance. |
 | 1.2 | 20-11-2026 | Implementación: API, base de datos, web, app móvil, datos semilla estimados y despliegue. Decisiones registradas en `00_TRANSFERENCIA/04_DECISIONES_DE_IMPLEMENTACION.md` (las marcadas ⚠ requieren revisión). Autor: Claude por encargo del equipo. Impacto: ninguno sobre fórmula, estados, roles ni alcance. |
 | 1.2.1 | 20-11-2026 | El equipo aprueba `04_DECISIONES_DE_IMPLEMENTACION.md` (código PDC-NNNN, urgencia Normal/Atención/Urgente, uso de datos estimados etiquetados). Validación técnica por especialista sigue pendiente. |
+| 1.3 | 20-11-2026 | Acceso de maquinaria en la inspección, reportes PDF/Excel, simulador con varios diques, interfaz en lenguaje simple y códigos de personal (aprobados por el equipo). Ver `04_DECISIONES_DE_IMPLEMENTACION.md` sección 9. |
 
 Cambios futuros requieren motivo, impacto, autor, fecha y actualización de documentos afectados.

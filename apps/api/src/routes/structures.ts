@@ -129,7 +129,7 @@ export async function structureRoutes(app: FastifyInstance) {
     const { id } = req.params as { id: string };
     if (!(await canAccessStructure(sql, user, id))) throw forbidden('Estructura no asignada');
     const [inspections, interventions, exposures, priorities, urgencies, audits, scenarios] = await Promise.all([
-      sql`SELECT i.id, i.inspected_at, i.damage_score, i.clogging_score, i.active_process_score, i.physical_status,
+      sql`SELECT i.id, i.inspected_at, i.damage_score, i.clogging_score, i.active_process_score, i.physical_status, i.machinery_access, i.access_obstacles, i.access_notes, ST_Y(i.vehicle_point) AS veh_lat, ST_X(i.vehicle_point) AS veh_lon,
                  i.access_status, i.validation_status, i.data_label, i.source_reference, u.display_name AS inspector_name
             FROM inspections i JOIN users u ON u.id = i.inspector_id WHERE i.structure_id = ${id} ORDER BY i.inspected_at DESC`,
       sql`SELECT * FROM interventions WHERE structure_id = ${id} ORDER BY created_at DESC`,

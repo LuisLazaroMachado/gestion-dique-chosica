@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Alert, Badge, Button, Card, Checkbox, Group, Loader, Modal, Paper, Select, SimpleGrid, Stack, Table, Tabs, Text, Textarea, TextInput, Tooltip } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import { api, ApiError, type PriorityItem } from '../api';
+import { api, ApiError, downloadFile, type PriorityItem } from '../api';
 import { DataLabel, PhysicalBadge, URGENCY_COLORS, fmt, fmtDateTime } from '../components/Labels';
 import { HelpTip, PageHeader } from '../components/Help';
 import { ACCESS_LABELS } from '@dique/shared';
@@ -37,6 +37,7 @@ export function PrioritiesPage() {
         description="Orden sugerido para atender las estructuras: primero las que están más dañadas y tienen más personas viviendo en la zona que podrían afectar. La decisión final siempre es del responsable."
         actions={<Group>
           <Button variant="default" disabled={!selected.length} onClick={() => setDecision({ decision: '', justification: '' })}>Registrar decisión ({selected.length})</Button>
+          <Button variant="default" onClick={() => downloadFile('/reports/priorities.xlsx', 'prioridades-diques.xlsx').catch((e) => notifications.show({ color: 'red', message: e instanceof ApiError ? e.full : String(e) }))}>Descargar Excel</Button>
           <Button onClick={() => recalc.mutate()} loading={recalc.isPending}>Actualizar</Button>
         </Group>} />
       <Card withBorder>

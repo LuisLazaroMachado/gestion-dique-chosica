@@ -7,11 +7,11 @@ import {
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import type { Map as MlMap } from 'maplibre-gl';
-import { ACCESS_LABELS, MATERIAL_LABELS, VALIDATION_LABELS, type Material } from '@dique/shared';
+import { ACCESS_LABELS, ACCESS_OBSTACLE_LABELS, MATERIAL_LABELS, VALIDATION_LABELS, type Material } from '@dique/shared';
 import { HelpTip } from '../components/Help';
-import { api, ApiError, type Structure } from '../api';
+import { api, ApiError, downloadFile, type Structure } from '../api';
 import {
-  DataLabel, InterventionBadge, OriginBadge, PhysicalBadge, TypeBadge, URGENCY_COLORS, fmt, fmtDate, fmtDateTime,
+  DataLabel, InterventionBadge, MachineryBadge, OriginBadge, PhysicalBadge, TypeBadge, URGENCY_COLORS, fmt, fmtDate, fmtDateTime,
 } from '../components/Labels';
 import { MapView, setGeoJson, fitTo } from '../components/MapView';
 import { StructureForm, formToPayload } from './Inventory';
@@ -121,6 +121,7 @@ export function StructureDetailPage() {
           </Group>
         </div>
         <Group>
+          <Button variant="default" onClick={() => downloadFile(`/reports/structures/${st.id}.pdf`, `ficha-${st.code}.pdf`).catch((e) => notifications.show({ color: 'red', message: errMsg(e) }))}>Descargar ficha (PDF)</Button>
           <Button variant="light" onClick={() => setUrgency({ level: 'Atención', justification: '' })}>Marcar urgencia</Button>
           <Button onClick={() => setEditing(true)}>Editar</Button>
         </Group>
@@ -193,6 +194,26 @@ export function StructureDetailPage() {
           ) : <Text c="dimmed" size="sm">Sin urgencia marcada.</Text>}
         </Card>
       </SimpleGrid>
+
+      {(() => {
+        const acc = hist?.inspections.find((i: any) => i.validation_status !== 'Observado');
+        return (
+          <Card withBorder>
+            <Group justify="space-between">
+              <Group gap={4}><Text fw={600}>Acceso para maquinaria</Text><HelpTip label="Lo que reportó el inspector en su última inspección. Sirve para decidir cómo llegar con maquinaria." /></Group>
+              <MachineryBadge value={acc?.machinery_access} />
+            </Group>
+            {acc ? (
+              <SimpleGrid cols={{ base: 1, md: 3 }} mt="xs">
+                <Field label="Camino hasta la estructura">{ACCESS_LABELS[acc.access_status] ?? acc.access_status}{acc.access_notes ? `: ${acc.access_notes}` : ''}</Field>
+                <Field label="Obstáculos">{acc.access_obstacles?.length ? acc.access_obstacles.map((o: string) => ACCESS_OBSTACLE_LABELS[o] ?? o).join(', ') : 'Ninguno reportado'}</Field>
+                <Field label="Último punto en vehículo">{acc.veh_lat != null ? <a href={`https://www.google.com/maps?q=${acc.veh_lat},${acc.veh_lon}`} target="_blank" rel="noreferrer">{Number(acc.veh_lat).toFixed(5)}, {Number(acc.veh_lon).toFixed(5)}</a> : 'No marcado'}</Field>
+              </SimpleGrid>
+            ) : <Text size="sm" c="dimmed">Sin inspecciones todavía.</Text>}
+            {acc && <Text size="xs" c="dimmed" mt={4}>Según la inspección del {fmtDate(acc.inspected_at)}. Las fotos del camino están en esa inspección.</Text>}
+          </Card>
+        );
+      })()}
 
       <Tabs defaultValue="insp">
         <Tabs.List>

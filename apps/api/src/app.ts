@@ -12,6 +12,7 @@ import { priorityRoutes } from './routes/priorities.js';
 import { operationsRoutes } from './routes/operations.js';
 import { adminRoutes } from './routes/admin.js';
 import { overviewRoutes } from './routes/overview.js';
+import { reportRoutes } from './routes/reports.js';
 import { sql } from './db.js';
 
 export async function buildApp(opts: { logger?: boolean } = {}) {
@@ -58,6 +59,7 @@ export async function buildApp(opts: { logger?: boolean } = {}) {
     await api.register(operationsRoutes);
     await api.register(adminRoutes);
     await api.register(overviewRoutes);
+    await api.register(reportRoutes);
   }, { prefix: '/api/v1' });
 
   return app;

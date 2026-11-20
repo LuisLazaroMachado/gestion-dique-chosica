@@ -4,7 +4,7 @@ import { Alert, Button, Group, Loader, Modal, NumberInput, Select, SimpleGrid, S
 import { notifications } from '@mantine/notifications';
 import { Link } from 'react-router-dom';
 import { MATERIALS, MATERIAL_LABELS, STRUCTURE_TYPES, STRUCTURE_TYPE_LABELS } from '@dique/shared';
-import { api, ApiError, type Structure } from '../api';
+import { api, ApiError, downloadFile, type Structure } from '../api';
 import { DataLabel, InterventionBadge, OriginBadge, PhysicalBadge, TypeBadge, fmtDate } from '../components/Labels';
 import { PageHeader } from '../components/Help';
 
@@ -102,7 +102,10 @@ export function InventoryPage() {
     <Stack>
       <PageHeader title="Inventario"
         description="Todas las estructuras de protección registradas. Haz clic en un código para ver su ficha: ubicación, inspecciones, trabajos y prioridad. Cada estructura tiene un código único que no cambia."
-        actions={<Button onClick={() => setCreating(true)}>Registrar estructura</Button>} />
+        actions={<Group>
+          <Button variant="default" onClick={() => downloadFile('/reports/priorities.xlsx', 'inventario-diques.xlsx').catch((e) => notifications.show({ color: 'red', message: e instanceof ApiError ? e.full : String(e) }))}>Descargar Excel</Button>
+          <Button onClick={() => setCreating(true)}>Registrar estructura</Button>
+        </Group>} />
       <Group>
         <TextInput placeholder="Buscar por código o nombre" value={q} onChange={(e) => setQ(e.currentTarget.value)} w={280} />
         <Select placeholder="Quebrada" data={watersheds} value={watershed} onChange={setWatershed} clearable />

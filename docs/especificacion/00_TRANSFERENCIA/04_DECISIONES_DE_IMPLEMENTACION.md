@@ -69,3 +69,10 @@ Corredor D8 desde la ubicación estimada del dique, con zona ampliada (35/70 m) 
 4. Viviendas ocupadas por polígono con dato censal o padrón.
 5. Topografía de detalle para una simulación de nivel B o C.
 6. Ubicación exacta de la base central y características de la maquinaria.
+
+## 9. Cambios aprobados por el equipo el 20-11-2026 (v1.3)
+- **Acceso de maquinaria (nuevo dato de inspección):** el inspector indica si la maquinaria llega (Sí llega / Solo maquinaria pequeña / No llega / No se sabe), marca los obstáculos y, si no llega, puede marcar con GPS el último punto accesible en vehículo. Si la respuesta es "No llega" o "Solo pequeña", debe marcar un obstáculo o describir el camino. El responsable de rutas **decide** con esta información y las fotos; el sistema **no** excluye estructuras. Cuando hay punto de vehículo, la ruta termina ahí.
+- **Fotos del camino:** siguen limitadas a 3, como dice el manual. La app recuerda tomarlas cuando el acceso no es bueno. Desde la galería se pueden elegir varias fotos a la vez.
+- **Reportes:** ficha de estructura en PDF y Excel con prioridades, estructuras con información faltante e inventario.
+- **Simulador con varios diques:** hasta 10 diques a la vez. Cada recorrido se calcula por separado, sin modelar un efecto en cadena (S4 sigue requiriendo hipótesis física documentada). Las personas expuestas se muestran por dique y no se suman.
+- **Textos de la interfaz en lenguaje simple** y códigos de personal (INS, RES, ADM), según la revisión del equipo.

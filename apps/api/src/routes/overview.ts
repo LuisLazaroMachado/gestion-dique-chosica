@@ -50,11 +50,13 @@ export async function overviewRoutes(app: FastifyInstance) {
     requireRole(user, 'planner', 'admin');
     const rows = await sql`
       SELECT s.*, ST_Y(s.geom) AS lat, ST_X(s.geom) AS lon,
-             pc.p, ur.level AS urgency
+             pc.p, ur.level AS urgency, ma.machinery_access
         FROM structures s
         LEFT JOIN LATERAL (SELECT p FROM priority_calculations x WHERE x.structure_id = s.id
                             AND x.batch_id = (SELECT id FROM priority_batches ORDER BY calculated_at DESC LIMIT 1)) pc ON true
         LEFT JOIN LATERAL (SELECT level FROM urgencies u WHERE u.structure_id = s.id ORDER BY created_at DESC LIMIT 1) ur ON true
+        LEFT JOIN LATERAL (SELECT machinery_access FROM inspections i WHERE i.structure_id = s.id AND i.machinery_access IS NOT NULL
+                            AND i.validation_status <> 'Observado' ORDER BY inspected_at DESC LIMIT 1) ma ON true
        WHERE s.active AND s.geom IS NOT NULL`;
     return {
       type: 'FeatureCollection',
@@ -67,6 +69,7 @@ export async function overviewRoutes(app: FastifyInstance) {
             id: s.id, code: s.code, name: s.name, watershed: s.watershed, structureType: s.structureType,
             physicalStatus: s.physicalStatus, interventionStatus: s.interventionStatus, originInventory: s.originInventory,
             locationLabel: s.location?.label, locationConfidence: s.location?.confidence, p: r.p ?? null, urgency: r.urgency ?? null,
+            machineryAccess: r.machinery_access ?? 'Sin dato',
           },
         };
       }),

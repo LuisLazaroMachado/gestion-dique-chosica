@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import {
-  ACCESS_STATUSES, EVIDENCE_TYPES, INTERVENTION_STATUSES, LOCATION_CONFIDENCE, MATERIALS,
+  ACCESS_OBSTACLES, MACHINERY_ACCESS, ACCESS_STATUSES, EVIDENCE_TYPES, INTERVENTION_STATUSES, LOCATION_CONFIDENCE, MATERIALS,
   PHYSICAL_STATUSES, ROLES, STRUCTURE_TYPES, URGENCY_LEVELS,
 } from './constants.js';
 
@@ -24,6 +24,13 @@ export const inspectionInput = z
     accessNotes: z.string().trim().max(2000).nullable().optional(),
     observations: z.string().trim().max(5000).nullable().optional(),
     undeterminedReasons: z.record(z.string(), z.string().trim().min(1)).optional().default({}),
+    // Opcional en la API para aceptar envíos de versiones anteriores de la app; la app 0.3+ lo exige.
+    machineryAccess: z.enum(MACHINERY_ACCESS).nullable().optional(),
+    accessObstacles: z.array(z.enum(ACCESS_OBSTACLES)).max(9).optional().default([]),
+    vehiclePoint: z
+      .object({ lat: z.number().min(-90).max(90), lon: z.number().min(-180).max(180), mock: z.boolean().optional() })
+      .nullable()
+      .optional(),
     deviceLocation: z
       .object({
         lat: z.number().min(-90).max(90),
@@ -39,6 +46,12 @@ export const inspectionInput = z
       ctx.addIssue({
         code: z.ZodIssueCode.custom, path: ['accessNotes'],
         message: 'Describa la causa de la dificultad o restricción de acceso.',
+      });
+    }
+    if ((v.machineryAccess === 'No' || v.machineryAccess === 'Solo pequeña') && !v.accessObstacles?.length && !v.accessNotes) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom, path: ['accessObstacles'],
+        message: 'Si la maquinaria no llega o solo llega una pequeña, marque al menos un obstáculo o describa el camino.',
       });
     }
     const fields = [['D', 'damageScore'], ['C', 'cloggingScore'], ['A', 'activeProcessScore']] as const;
@@ -66,6 +79,8 @@ export const inspectionCorrection = z.object({
       observations: z.string().nullable().optional(),
       verifierName: z.string().nullable().optional(),
       undeterminedReasons: z.record(z.string(), z.string()).optional(),
+      machineryAccess: z.enum(MACHINERY_ACCESS).nullable().optional(),
+      accessObstacles: z.array(z.enum(ACCESS_OBSTACLES)).max(9).optional(),
     })
     .refine((c) => Object.keys(c).length > 0, 'No hay cambios'),
 });

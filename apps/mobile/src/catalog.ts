@@ -5,6 +5,19 @@ export const ACCESS_STATUSES = ['Sin observación', 'Difícil', 'Restringido', '
 // Texto visible (el valor guardado sigue siendo el del catálogo aprobado).
 export const ACCESS_LABELS: Record<string, string> = { 'Sin observación': 'Sin problemas', 'Difícil': 'Difícil (pendiente, sin camino, obstáculos)', 'Restringido': 'Restringido (cerrado o requiere permiso)', 'No determinado': 'No llegué hasta la estructura' };
 
+// Acceso de maquinaria (aprobado 20-11-2026). Mantener sincronizado con packages/shared/src/constants.ts
+export const MACHINERY_ACCESS = ['Sí', 'Solo pequeña', 'No', 'No se sabe'] as const;
+export const MACHINERY_ACCESS_LABELS: Record<string, string> = {
+  'Sí': 'Sí llega', 'Solo pequeña': 'Solo maquinaria pequeña', 'No': 'No llega', 'No se sabe': 'No se sabe',
+};
+export const ACCESS_OBSTACLES = [
+  { value: 'camino_angosto', label: 'Camino angosto' }, { value: 'pendiente_fuerte', label: 'Pendiente fuerte' },
+  { value: 'escaleras', label: 'Escaleras' }, { value: 'sin_camino', label: 'No hay camino' },
+  { value: 'cerrado', label: 'Paso cerrado o con portón' }, { value: 'puente_debil', label: 'Puente o alcantarilla débil' },
+  { value: 'material_en_camino', label: 'Rocas o material en el camino' }, { value: 'viviendas_cercanas', label: 'Viviendas muy pegadas' },
+  { value: 'otro', label: 'Otro' },
+] as const;
+
 export const SCALE_NAMES = { D: 'Daño en la estructura', C: 'Material acumulado (colmatación)', A: 'Erosión o deslizamiento activo' } as const;
 export const SCALE_DESCRIPTORS = {
   D: [

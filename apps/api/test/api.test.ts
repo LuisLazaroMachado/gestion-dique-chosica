@@ -161,6 +161,31 @@ describe('Inspecciones', () => {
   });
 });
 
+describe('Acceso de maquinaria', () => {
+  it('guarda si llega la maquinaria, los obstáculos y el punto del vehículo', async () => {
+    const r = await call('insp', 'POST', '/inspections', inspectionBody(ids.s2, {
+      machineryAccess: 'No', accessObstacles: ['escaleras', 'sin_camino'],
+      vehiclePoint: { lat: -11.9215, lon: -76.7005, mock: true },
+    }));
+    expect(r.statusCode).toBe(201);
+    expect(r.json().machineryAccess).toBe('No');
+    expect(r.json().accessObstacles).toEqual(['escaleras', 'sin_camino']);
+    expect(r.json().vehiclePoint.lat).toBeCloseTo(-11.9215, 6);
+    ids.iMach = r.json().id;
+  });
+  it('si la maquinaria no llega exige un obstáculo o una descripción', async () => {
+    const bad = await call('insp', 'POST', '/inspections', inspectionBody(ids.s2, { machineryAccess: 'No' }));
+    expect(bad.statusCode).toBe(400);
+    const ok = await call('insp', 'POST', '/inspections', inspectionBody(ids.s2, { machineryAccess: 'No', accessStatus: 'Difícil', accessNotes: 'Solo hay escaleras' }));
+    expect(ok.statusCode).toBe(201);
+  });
+  it('acepta inspecciones de versiones anteriores de la app (sin el dato)', async () => {
+    const r = await call('insp', 'POST', '/inspections', inspectionBody(ids.s2));
+    expect(r.statusCode).toBe(201);
+    expect(r.json().machineryAccess).toBeNull();
+  });
+});
+
 describe('Priorización', () => {
   it('sin exposición no se calcula P', async () => {
     const v = await call('planner', 'POST', `/inspections/${ids.i1}/validate`, { decision: 'Validado' });
@@ -262,6 +287,37 @@ describe('Rutas', () => {
     expect(r.json().distanceM).toBeGreaterThan(0);
     const [{ n: after }] = await sql`SELECT count(*)::int AS n FROM routes`;
     expect(after).toBe(before);
+  });
+});
+
+describe('Rutas con acceso de maquinaria', () => {
+  it('la vista previa informa el acceso y llega hasta el punto del vehículo', async () => {
+    await call('planner', 'POST', `/inspections/${ids.iMach}/validate`, { decision: 'Validado' });
+    const r = await call('planner', 'POST', '/routes/preview', { structureIds: [ids.s2] });
+    expect(r.statusCode).toBe(200);
+    const stop = r.json().stops.find((x: { structureId: string }) => x.structureId === ids.s2);
+    expect(stop).toBeTruthy();
+    expect(['No', null]).toContain(stop.machineryAccess);
+    expect(r.json().warnings.join(' ')).toMatch(/maquinaria|acceso/i);
+  });
+});
+
+describe('Reportes', () => {
+  it('descarga la lista de prioridades en Excel', async () => {
+    const r = await call('planner', 'GET', '/reports/priorities.xlsx');
+    expect(r.statusCode).toBe(200);
+    expect(r.headers['content-type']).toContain('spreadsheetml');
+    expect(r.rawPayload.subarray(0, 2).toString()).toBe('PK');
+  });
+  it('descarga la ficha de una estructura en PDF', async () => {
+    const r = await call('planner', 'GET', `/reports/structures/${ids.s1}.pdf`);
+    expect(r.statusCode).toBe(200);
+    expect(r.headers['content-type']).toContain('pdf');
+    expect(r.rawPayload.subarray(0, 4).toString()).toBe('%PDF');
+  });
+  it('el inspector no puede descargar reportes', async () => {
+    const r = await call('insp', 'GET', '/reports/priorities.xlsx');
+    expect(r.statusCode).toBe(403);
   });
 });
 

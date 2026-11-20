@@ -125,26 +125,49 @@ export async function operationsRoutes(app: FastifyInstance) {
     const history = await sql`SELECT a.occurred_at, a.before_data, a.after_data, a.reason, u.display_name AS actor_name
                                FROM audit_log a LEFT JOIN users u ON u.id = a.actor_id
                               WHERE a.entity_type = 'route' AND a.entity_id = ${id} ORDER BY a.occurred_at`;
-    return { ...mapRoute(r), history };
+    const { rows } = await loadStops(r.structure_ids_final);
+    return { ...mapRoute(r), history, stops: stopInfo(rows) };
   });
 
   // Carga las estructuras de una ruta y verifica que tengan coordenadas.
   async function loadStops(ids: string[]) {
     const rows = await sql`
-      SELECT s.id, s.code, ST_Y(s.geom) AS lat, ST_X(s.geom) AS lon, s.location_label,
-             (SELECT access_status FROM inspections i WHERE i.structure_id = s.id ORDER BY inspected_at DESC LIMIT 1) AS access_status
-        FROM structures s WHERE s.id = ANY(${ids}) AND s.active`;
+      SELECT s.id, s.code, s.name, ST_Y(s.geom) AS lat, ST_X(s.geom) AS lon, s.location_label,
+             li.id AS inspection_id, li.inspected_at, li.validation_status, li.access_status, li.access_notes,
+             li.machinery_access, li.access_obstacles, ST_Y(li.vehicle_point) AS veh_lat, ST_X(li.vehicle_point) AS veh_lon,
+             COALESCE((SELECT array_agg(e.id ORDER BY e.created_at) FROM evidence e
+                        WHERE e.inspection_id = li.id AND e.evidence_type = 'acceso' AND e.upload_status = 'confirmada'), '{}') AS access_photo_ids
+        FROM structures s
+        LEFT JOIN LATERAL (SELECT * FROM inspections i WHERE i.structure_id = s.id AND i.validation_status <> 'Observado'
+                            ORDER BY inspected_at DESC LIMIT 1) li ON true
+       WHERE s.id = ANY(${ids}) AND s.active`;
     if (rows.length !== new Set(ids).size) throw badRequest('Alguna estructura no existe o está inactiva');
     const noGeom = rows.filter((r) => r.lat == null);
     if (noGeom.length) throw badRequest(`Sin ubicación: ${noGeom.map((r) => r.code).join(', ')}`);
     const byId = new Map(rows.map((r) => [r.id as string, r]));
-    return { rows, byId, pts: (list: string[]): Pt[] => list.map((i) => ({ id: i, lat: byId.get(i)!.lat, lon: byId.get(i)!.lon })) };
+    // Si el inspector marcó hasta dónde llega un vehículo, la ruta termina ahí (no en el dique).
+    const target = (r: Record<string, any>) => (r.veh_lat != null ? { lat: r.veh_lat, lon: r.veh_lon } : { lat: r.lat, lon: r.lon });
+    return { rows, byId, pts: (list: string[]): Pt[] => list.map((i) => ({ id: i, ...target(byId.get(i)!) })) };
+  }
+
+  /** Lo que el responsable necesita para decidir sobre cada parada. */
+  function stopInfo(rows: Array<Record<string, any>>) {
+    return rows.map((r) => ({
+      structureId: r.id, code: r.code, name: r.name, inspectionId: r.inspection_id, inspectedAt: r.inspected_at,
+      validationStatus: r.validation_status, machineryAccess: r.machinery_access ?? null, accessObstacles: r.access_obstacles ?? [],
+      accessStatus: r.access_status ?? null, accessNotes: r.access_notes ?? null,
+      vehiclePoint: r.veh_lat == null ? null : { lat: r.veh_lat, lon: r.veh_lon }, structurePoint: { lat: r.lat, lon: r.lon },
+      accessPhotoIds: r.access_photo_ids ?? [],
+    }));
   }
 
   function routeNotes(rows: Array<Record<string, any>>, providerWarnings: string[]) {
     const notes = [...providerWarnings];
     for (const r of rows) {
-      if (r.access_status === 'Difícil' || r.access_status === 'Restringido') notes.push(`${r.code}: el último inspector reportó acceso ${r.access_status.toLowerCase()}. Se incluye igual; revisa cómo llegar.`);
+      if (r.machinery_access === 'No') notes.push(`${r.code}: el inspector reportó que la maquinaria NO llega. Revisa sus fotos antes de decidir.`);
+      else if (r.machinery_access === 'Solo pequeña') notes.push(`${r.code}: solo llega maquinaria pequeña.`);
+      else if (!r.machinery_access) notes.push(`${r.code}: todavía no hay información sobre el acceso de maquinaria.`);
+      if (r.veh_lat != null) notes.push(`${r.code}: la ruta llega hasta el último punto accesible en vehículo marcado por el inspector.`);
     }
     return notes;
   }
@@ -173,7 +196,7 @@ export async function operationsRoutes(app: FastifyInstance) {
       return mapRoute(full);
     });
     reply.code(201);
-    return created;
+    return { ...created, stops: stopInfo(rows) };
   });
 
   // Vista previa de un orden (no guarda nada): permite que el mapa se actualice al reordenar.
@@ -187,6 +210,7 @@ export async function operationsRoutes(app: FastifyInstance) {
     return {
       structureIds: b.structureIds, geometry: { type: 'LineString', coordinates: geo.coordinates },
       distanceM: geo.distanceM, durationS: geo.durationS, provider: geo.provider, warnings: routeNotes(rows, geo.warnings),
+      stops: stopInfo(rows),
     };
   });
 

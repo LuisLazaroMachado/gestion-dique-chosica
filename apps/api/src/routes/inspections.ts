@@ -9,6 +9,7 @@ import { recalculatePriorities } from '../services/priority.js';
 
 const SELECT = (db: Db) => db`
   SELECT i.*, ST_Y(i.device_location) AS dev_lat, ST_X(i.device_location) AS dev_lon,
+         ST_Y(i.vehicle_point) AS veh_lat, ST_X(i.vehicle_point) AS veh_lon,
          s.code AS structure_code, s.name AS structure_name, u.display_name AS inspector_name
     FROM inspections i JOIN structures s ON s.id = i.structure_id JOIN users u ON u.id = i.inspector_id`;
 
@@ -53,12 +54,14 @@ export async function inspectionRoutes(app: FastifyInstance) {
       const [row] = await tx`
         INSERT INTO inspections (structure_id, assignment_id, inspector_id, verifier_name, verifier_role, inspected_at,
           damage_score, clogging_score, active_process_score, physical_status, access_status, access_notes,
-          observations, undetermined_reasons, device_location, device_location_mock, device_accuracy_m, device_record_id)
+          observations, undetermined_reasons, device_location, device_location_mock, device_accuracy_m, device_record_id,
+          machinery_access, access_obstacles, vehicle_point, vehicle_point_mock)
         VALUES (${b.structureId}, ${b.assignmentId ?? null}, ${user.id}, ${b.verifierName ?? null}, ${b.verifierRole ?? null},
           ${b.inspectedAt}, ${b.damageScore}, ${b.cloggingScore}, ${b.activeProcessScore}, ${b.physicalStatus},
           ${b.accessStatus}, ${b.accessNotes ?? null}, ${b.observations ?? null}, ${tx.json(b.undeterminedReasons ?? {})},
           ${loc ? toPoint(loc.lat, loc.lon) : null}::geometry, ${loc?.mock ?? null}, ${loc?.accuracyM ?? null},
-          ${b.deviceRecordId ?? null})
+          ${b.deviceRecordId ?? null}, ${b.machineryAccess ?? null}, ${b.accessObstacles ?? []},
+          ${b.vehiclePoint ? toPoint(b.vehiclePoint.lat, b.vehiclePoint.lon) : null}::geometry, ${b.vehiclePoint?.mock ?? null})
         ON CONFLICT (device_record_id) DO NOTHING
         RETURNING id`;
       if (!row) throw conflict('Inspección ya registrada');
@@ -108,6 +111,8 @@ export async function inspectionRoutes(app: FastifyInstance) {
         access_notes: c.accessNotes !== undefined ? c.accessNotes : before.access_notes,
         observations: c.observations !== undefined ? c.observations : before.observations,
         verifier_name: c.verifierName !== undefined ? c.verifierName : before.verifier_name,
+        machinery_access: c.machineryAccess !== undefined ? c.machineryAccess : before.machinery_access,
+        access_obstacles: c.accessObstacles ?? before.access_obstacles,
         undetermined_reasons: c.undeterminedReasons ?? before.undetermined_reasons,
       };
       // Si cambia una inspección validada, vuelve a revisión del responsable.
@@ -117,6 +122,7 @@ export async function inspectionRoutes(app: FastifyInstance) {
           active_process_score = ${next.active_process_score}, physical_status = ${next.physical_status},
           access_status = ${next.access_status}, access_notes = ${next.access_notes}, observations = ${next.observations},
           verifier_name = ${next.verifier_name}, undetermined_reasons = ${tx.json(next.undetermined_reasons)},
+          machinery_access = ${next.machinery_access}, access_obstacles = ${next.access_obstacles},
           validation_status = CASE WHEN ${revalidate} THEN 'Enviado' ELSE validation_status END,
           updated_at = now()
         WHERE id = ${id}`;

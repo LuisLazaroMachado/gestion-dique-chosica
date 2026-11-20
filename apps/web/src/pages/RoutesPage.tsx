@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { ACCESS_OBSTACLE_LABELS } from '@dique/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Alert, Badge, Button, Card, Grid, Group, Loader, MultiSelect, Paper, Stack, Table, Text, TextInput } from '@mantine/core';
+import { Alert, Badge, Button, Card, Grid, Group, Image, Loader, Modal, MultiSelect, Paper, SimpleGrid, Stack, Table, Text, TextInput } from '@mantine/core';
 import { IconGripVertical } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import maplibregl, { type Map as MlMap } from 'maplibre-gl';
-import { api, ApiError, type Structure } from '../api';
+import { api, ApiError, evidenceObjectUrl, type Structure } from '../api';
 import { MapView, setGeoJson, fitTo } from '../components/MapView';
-import { fmtDateTime } from '../components/Labels';
+import { MachineryBadge, fmtDate, fmtDateTime } from '../components/Labels';
 import { PageHeader } from '../components/Help';
 
 const errMsg = (e: unknown) => (e instanceof ApiError ? e.full : String(e));
@@ -14,6 +15,14 @@ const km = (m?: number | null) => (m == null ? '-' : `${(m / 1000).toFixed(1)} k
 const mins = (s?: number | null) => (s == null ? null : s >= 3600 ? `${Math.floor(s / 3600)} h ${Math.round((s % 3600) / 60)} min` : `${Math.round(s / 60)} min`);
 
 interface View { geometry: any; distanceM: number; durationS: number | null; provider: string; warnings: string[] }
+
+function AccessPhoto({ id }: { id: string }) {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => { let u = ''; evidenceObjectUrl(id).then((x) => { u = x; setUrl(x); }).catch(() => setUrl('')); return () => { if (u) URL.revokeObjectURL(u); }; }, [id]);
+  if (url === null) return <Loader size="sm" />;
+  if (!url) return <Text size="xs" c="red">Foto no disponible</Text>;
+  return <a href={url} target="_blank" rel="noreferrer"><Image src={url} h={220} fit="cover" radius="sm" /></a>;
+}
 
 export function RoutesPage() {
   const qc = useQueryClient();
@@ -25,6 +34,8 @@ export function RoutesPage() {
   const [view, setView] = useState<View | null>(null);        // geometría mostrada (propuesta o vista previa)
   const [previewing, setPreviewing] = useState(false);
   const [justification, setJustification] = useState('');
+  const [stops, setStops] = useState<Record<string, any>>({});
+  const [photosOf, setPhotosOf] = useState<any | null>(null);
   const dragFrom = useRef<number | null>(null);
   const [dragOver, setDragOver] = useState<number | null>(null);
   const mapRef = useRef<MlMap | null>(null);
@@ -35,9 +46,12 @@ export function RoutesPage() {
   const baseInfo = base.data?.items.find((s: any) => s.key === 'base_central')?.value;
   const byId = new Map((structures.data?.items ?? []).map((s) => [s.id, s]));
 
-  const openRoute = (r: any) => {
+  const keepStops = (list?: any[]) => { if (list) setStops(Object.fromEntries(list.map((x) => [x.structureId, x]))); };
+  const openRoute = async (r: any) => {
     setRoute(r); setOrder(r.structureIdsFinal); setJustification('');
     setView({ geometry: r.geometry, distanceM: r.distanceM, durationS: r.durationS, provider: r.provider, warnings: r.warnings ?? [] });
+    if (r.stops) keepStops(r.stops);
+    else api(`/routes/${r.id}`).then((full) => keepStops(full.stops)).catch(() => undefined);
   };
 
   const calc = useMutation({
@@ -60,6 +74,7 @@ export function RoutesPage() {
       try {
         const p = await api('/routes/preview', { body: { structureIds: order } });
         setView({ geometry: p.geometry, distanceM: p.distanceM, durationS: p.durationS, provider: p.provider, warnings: p.warnings });
+        keepStops(p.stops);
       } catch (e) { notifications.show({ color: 'red', message: errMsg(e) }); }
       setPreviewing(false);
     }, 350);
@@ -90,12 +105,15 @@ export function RoutesPage() {
     if (b?.lat != null) mk(b.lon, b.lat, 'Base', '#2b8a3e', 'Base de la maquinaria');
     order.forEach((id, i) => {
       const s = byId.get(id);
-      if (s?.location) mk(s.location.lon, s.location.lat, String(i + 1), '#1c4f82', `${i + 1}. ${s.code}`);
+      const vp = stops[id]?.vehiclePoint;
+      if (vp) mk(vp.lon, vp.lat, String(i + 1), '#1c4f82', `${i + 1}. ${s?.code}: último punto en vehículo`);
+      else if (s?.location) mk(s.location.lon, s.location.lat, String(i + 1), '#1c4f82', `${i + 1}. ${s.code}`);
+      if (vp && s?.location) mk(s.location.lon, s.location.lat, '▲', '#e8590c', `${s.code}: ubicación del dique (a pie desde el punto ${i + 1})`);
     });
     const coords = view.geometry?.coordinates as Array<[number, number]>;
     if (coords?.length) fitTo(map, coords);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view, structures.data, order]);
+  }, [view, structures.data, order, stops]);
 
   // Arrastrar y soltar para reordenar
   const onDrop = (to: number) => {
@@ -155,11 +173,24 @@ export function RoutesPage() {
                       <Group gap={8} wrap="nowrap">
                         <IconGripVertical size={16} color="#868e96" />
                         <Badge circle size="lg" color="blue">{i + 1}</Badge>
-                        <div style={{ minWidth: 0 }}>
+                        <div style={{ minWidth: 0, flex: 1 }}>
                           <Text size="sm" fw={600}>{s?.code}</Text>
                           <Text size="xs" c="dimmed" truncate>{s?.name}</Text>
                         </div>
                       </Group>
+                      {stops[id] && (
+                        <Stack gap={2} mt={4} ml={28}>
+                          <Group gap={4}><MachineryBadge value={stops[id].machineryAccess} />
+                            {stops[id].vehiclePoint && <Badge size="xs" variant="light" color="orange">Termina en el punto del vehículo</Badge>}</Group>
+                          {stops[id].accessObstacles?.length > 0 && (
+                            <Text size="xs" c="dimmed">Obstáculos: {stops[id].accessObstacles.map((o: string) => ACCESS_OBSTACLE_LABELS[o] ?? o).join(', ')}</Text>
+                          )}
+                          {stops[id].accessNotes && <Text size="xs" c="dimmed">{stops[id].accessNotes}</Text>}
+                          {stops[id].accessPhotoIds?.length > 0
+                            ? <Button size="compact-xs" variant="light" w="fit-content" onClick={() => setPhotosOf({ ...stops[id], code: s?.code })}>Ver fotos del camino ({stops[id].accessPhotoIds.length})</Button>
+                            : <Text size="xs" c="dimmed">Sin fotos del camino</Text>}
+                        </Stack>
+                      )}
                     </Paper>
                   );
                 })}
@@ -186,6 +217,17 @@ export function RoutesPage() {
           <MapView height="70vh" onReady={draw} />
         </Grid.Col>
       </Grid>
+
+      <Modal opened={!!photosOf} onClose={() => setPhotosOf(null)} title={`Camino de acceso a ${photosOf?.code ?? ''}`} size="xl">
+        {photosOf && (
+          <Stack>
+            <Group gap={6}><MachineryBadge value={photosOf.machineryAccess} />
+              <Text size="xs" c="dimmed">Inspección del {fmtDate(photosOf.inspectedAt)}</Text></Group>
+            {photosOf.accessNotes && <Text size="sm">{photosOf.accessNotes}</Text>}
+            <SimpleGrid cols={{ base: 1, sm: 2 }}>{photosOf.accessPhotoIds.map((pid: string) => <AccessPhoto key={pid} id={pid} />)}</SimpleGrid>
+          </Stack>
+        )}
+      </Modal>
 
       <Text fw={600} mt="md">Recorridos guardados</Text>
       <Table striped highlightOnHover>

@@ -50,6 +50,16 @@ export async function evidenceObjectUrl(id: string): Promise<string> {
   return URL.createObjectURL(await res.blob());
 }
 
+/** Descarga un reporte (requiere sesión) y lo guarda con el nombre indicado. */
+export async function downloadFile(path: string, filename: string) {
+  const res = await fetch(`${API_URL}/api/v1${path}`, { headers: { Authorization: `Bearer ${getToken()}` } });
+  if (!res.ok) throw new ApiError(res.status, 'No se pudo generar el reporte');
+  const url = URL.createObjectURL(await res.blob());
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+
 export async function uploadEvidence(file: File, meta: Record<string, unknown>) {
   const buf = await file.arrayBuffer();
   const hash = await crypto.subtle.digest('SHA-256', buf);

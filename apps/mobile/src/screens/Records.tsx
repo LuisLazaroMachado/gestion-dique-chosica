@@ -63,6 +63,7 @@ export function RecordsScreen({ onBack }: { onBack: () => void }) {
               </View>
               <Dim>{new Date(p.inspectedAt).toLocaleString('es-PE')} · Daño {p.damageScore ?? 's/d'} · Material {p.cloggingScore ?? 's/d'} · Erosión {p.activeProcessScore ?? 's/d'} · {p.physicalStatus}</Dim>
               <Dim>Fotos enviadas: {item.photos.filter((f: any) => f.status === 'confirmado').length} de {item.photos.length}</Dim>
+              {p.machineryAccess ? <Dim>Maquinaria: {p.machineryAccess === 'Sí' ? 'sí llega' : p.machineryAccess === 'No' ? 'no llega' : p.machineryAccess === 'Solo pequeña' ? 'solo pequeña' : 'no se sabe'}</Dim> : null}
               {item.error ? <Text style={{ color: C.danger, marginTop: 4 }}>{item.error}</Text> : null}
               {item.photos.filter((f: any) => f.error).map((f: any) => <Text key={f.id} style={{ color: C.danger, fontSize: 12 }}>Foto {f.evidence_type}: {f.error}</Text>)}
               {item.validation_status && (

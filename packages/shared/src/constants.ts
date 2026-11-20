@@ -59,6 +59,26 @@ export const EVIDENCE_TYPE_LABELS: Record<EvidenceType, string> = {
 };
 
 export const URGENCY_LEVELS = ['Normal', 'Atención', 'Urgente'] as const;
+
+// Acceso de maquinaria (aprobado 20-11-2026). El responsable decide con esta información; no excluye estructuras.
+export const MACHINERY_ACCESS = ['Sí', 'Solo pequeña', 'No', 'No se sabe'] as const;
+export type MachineryAccess = (typeof MACHINERY_ACCESS)[number];
+export const MACHINERY_ACCESS_LABELS: Record<string, string> = {
+  'Sí': 'Sí llega', 'Solo pequeña': 'Solo maquinaria pequeña', 'No': 'No llega', 'No se sabe': 'No se sabe',
+};
+export const MACHINERY_ACCESS_COLORS: Record<string, string> = {
+  'Sí': '#2f9e44', 'Solo pequeña': '#f08c00', 'No': '#e03131', 'No se sabe': '#868e96',
+};
+export const ACCESS_OBSTACLES = [
+  'camino_angosto', 'pendiente_fuerte', 'escaleras', 'sin_camino', 'cerrado',
+  'puente_debil', 'material_en_camino', 'viviendas_cercanas', 'otro',
+] as const;
+export type AccessObstacle = (typeof ACCESS_OBSTACLES)[number];
+export const ACCESS_OBSTACLE_LABELS: Record<string, string> = {
+  camino_angosto: 'Camino angosto', pendiente_fuerte: 'Pendiente fuerte', escaleras: 'Escaleras',
+  sin_camino: 'No hay camino', cerrado: 'Paso cerrado o con portón', puente_debil: 'Puente o alcantarilla débil',
+  material_en_camino: 'Rocas o material en el camino', viviendas_cercanas: 'Viviendas muy pegadas', otro: 'Otro',
+};
 export type UrgencyLevel = (typeof URGENCY_LEVELS)[number];
 
 export const LOCATION_CONFIDENCE = ['verificada', 'aproximada', 'provisional'] as const;

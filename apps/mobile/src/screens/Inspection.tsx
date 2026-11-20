@@ -4,7 +4,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { getLastInspection, getStructure, type LocalStructure } from '../db';
 import { saveInspectionLocally } from '../sync';
-import { ACCESS_LABELS, ACCESS_STATUSES, PHOTO_TYPES, PHYSICAL_STATUSES, SAFETY_RULES, SCALE_DESCRIPTORS, SCALE_NAMES, type PhotoType } from '../catalog';
+import { ACCESS_OBSTACLES, MACHINERY_ACCESS, MACHINERY_ACCESS_LABELS, ACCESS_LABELS, ACCESS_STATUSES, PHOTO_TYPES, PHYSICAL_STATUSES, SAFETY_RULES, SCALE_DESCRIPTORS, SCALE_NAMES, type PhotoType } from '../catalog';
 import { Badge, Btn, C, Card, Chip, Dim, H, Label, PHYSICAL_COLORS, s } from '../ui';
 
 type Key = 'D' | 'C' | 'A';
@@ -88,6 +88,9 @@ export function InspectionScreen({ structureId, assignmentId, onDone, onCancel }
   const [physical, setPhysical] = useState<string | null>(null);
   const [access, setAccess] = useState<string>('Sin observación');
   const [accessNotes, setAccessNotes] = useState('');
+  const [machinery, setMachinery] = useState<string | null>(null);
+  const [obstacles, setObstacles] = useState<string[]>([]);
+  const [vehiclePoint, setVehiclePoint] = useState<{ lat: number; lon: number; mock?: boolean } | null>(null);
   const [observations, setObservations] = useState('');
   const [verifier, setVerifier] = useState('');
   const [verifierRole, setVerifierRole] = useState('');
@@ -117,11 +120,22 @@ export function InspectionScreen({ structureId, assignmentId, onDone, onCancel }
       const perm = await ImagePicker.requestCameraPermissionsAsync();
       if (!perm.granted) { Alert.alert('Cámara', 'Permiso denegado.'); return; }
     }
-    const opts: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], quality: 0.6, exif: false };
+    const remaining = type === 'acceso' ? 3 - photos.filter((p) => p.type === 'acceso').length : 10;
+    const opts: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], quality: 0.6, exif: false,
+      allowsMultipleSelection: !fromCamera, selectionLimit: remaining };
     const res = fromCamera ? await ImagePicker.launchCameraAsync(opts) : await ImagePicker.launchImageLibraryAsync(opts);
-    if (res.canceled || !res.assets?.[0]) return;
+    if (res.canceled || !res.assets?.length) return;
     const loc = useGps ? (gps ?? (await captureGps())) : null;
-    setPhotos((p) => [...p, { uri: res.assets[0].uri, type, capturedAt: new Date().toISOString(), location: loc ? { lat: loc.lat, lon: loc.lon, mock: loc.mock } : null }]);
+    const now = new Date().toISOString();
+    setPhotos((p) => [...p, ...res.assets.slice(0, remaining).map((a) => ({ uri: a.uri, type, capturedAt: now, location: loc ? { lat: loc.lat, lon: loc.lon, mock: loc.mock } : null }))]);
+  };
+
+  const markVehiclePoint = async () => {
+    const g = await captureGps();
+    if (g) {
+      setVehiclePoint({ lat: g.lat, lon: g.lon, mock: g.mock });
+      Alert.alert('Punto marcado', 'Se guardó tu ubicación actual como el último punto donde llega un vehículo.');
+    }
   };
 
   const validate = (): string | null => {
@@ -131,6 +145,10 @@ export function InspectionScreen({ structureId, assignmentId, onDone, onCancel }
     }
     if (!physical) return 'Elige el estado general de la estructura.';
     if ((access === 'Difícil' || access === 'Restringido') && !accessNotes.trim()) return 'Explica por qué fue difícil llegar.';
+    if (!machinery) return 'Indica si puede llegar maquinaria hasta la estructura (o "No se sabe").';
+    if ((machinery === 'No' || machinery === 'Solo pequeña') && !obstacles.length && !accessNotes.trim()) {
+      return 'Marca al menos un obstáculo o describe el camino, para que el responsable sepa por qué no llega la maquinaria.';
+    }
     if (!photos.some((p) => p.type === 'general')) return 'La foto de vista general es obligatoria, si es seguro tomarla.';
     return null;
   };
@@ -141,6 +159,12 @@ export function InspectionScreen({ structureId, assignmentId, onDone, onCancel }
       if (err.startsWith('La foto de vista general')) {
         Alert.alert('Falta foto general', `${err}\n¿Guardar de todos modos?`, [{ text: 'Volver' }, { text: 'Guardar sin foto', onPress: () => doSave(true) }]);
       } else Alert.alert('Revise el formulario', err);
+      return;
+    }
+    const needsAccessPhoto = (machinery && machinery !== 'Sí') || access === 'Difícil' || access === 'Restringido' || access === 'No determinado';
+    if (needsAccessPhoto && !photos.some((p) => p.type === 'acceso')) {
+      Alert.alert('Falta foto del camino', 'El responsable decidirá cómo llegar con la maquinaria según tus fotos. ¿Tomas una foto del camino (si es seguro) o guardas sin ella?',
+        [{ text: 'Tomar foto', onPress: () => addPhoto('acceso', true) }, { text: 'Guardar sin foto', onPress: () => doSave(false) }]);
       return;
     }
     doSave(false);
@@ -158,6 +182,7 @@ export function InspectionScreen({ structureId, assignmentId, onDone, onCancel }
       damageScore: scores.D ?? null, cloggingScore: scores.C ?? null, activeProcessScore: scores.A ?? null,
       physicalStatus: physical, accessStatus: access, accessNotes: accessNotes.trim() || null, observations: obs || null,
       undeterminedReasons, deviceLocation: useGps && gps ? gps : null,
+      machineryAccess: machinery, accessObstacles: obstacles, vehiclePoint,
     };
     try {
       await saveInspectionLocally(structureId, payload, photos);
@@ -208,7 +233,30 @@ export function InspectionScreen({ structureId, assignmentId, onDone, onCancel }
           )}
         </Card>
         <Card>
+          <H>¿Puede llegar maquinaria hasta la estructura?</H>
+          <Dim>Por ejemplo, una retroexcavadora o un volquete. El responsable decidirá cómo llegar con esta información y tus fotos.</Dim>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 8 }}>
+            {MACHINERY_ACCESS.map((m) => <Chip key={m} label={MACHINERY_ACCESS_LABELS[m]} selected={machinery === m}
+              color={m === 'Sí' ? C.ok : m === 'No' ? C.danger : m === 'Solo pequeña' ? C.warn : C.dim} onPress={() => setMachinery(m)} />)}
+          </View>
+          {machinery && machinery !== 'Sí' && (
+            <>
+              <Label>¿Qué lo impide o dificulta? (marca todos los que apliquen)</Label>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                {ACCESS_OBSTACLES.map((o) => <Chip key={o.value} label={o.label} selected={obstacles.includes(o.value)}
+                  onPress={() => setObstacles(obstacles.includes(o.value) ? obstacles.filter((x) => x !== o.value) : [...obstacles, o.value])} />)}
+              </View>
+              <Label>¿Hasta dónde llega un vehículo?</Label>
+              <Dim>Párate en el último punto donde puede llegar un vehículo y toca el botón. La ruta de la maquinaria terminará ahí.</Dim>
+              <Btn title={vehiclePoint ? 'Volver a marcar el punto' : 'Marcar aquí el último punto en vehículo'} kind="light" onPress={markVehiclePoint} style={{ marginTop: 6 }} />
+              {vehiclePoint && <Text style={{ marginTop: 4 }}>Punto marcado: {vehiclePoint.lat.toFixed(5)}, {vehiclePoint.lon.toFixed(5)}{vehiclePoint.mock ? ' (simulado)' : ''}</Text>}
+              <Dim>No olvides tomar fotos del camino en la sección "Camino de acceso".</Dim>
+            </>
+          )}
+        </Card>
+        <Card>
           <H>Fotos ({photos.length})</H>
+          <Dim>Puedes agregar varias fotos de cada tipo. Desde la galería puedes elegir varias a la vez.</Dim>
           {PHOTO_TYPES.map((t) => (
             <View key={t.value} style={{ marginBottom: 10 }}>
               <Text style={{ fontWeight: '700' }}>{t.label} <Text style={{ fontWeight: '400', color: C.dim }}>· {t.hint}</Text></Text>

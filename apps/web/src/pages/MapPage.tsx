@@ -3,15 +3,16 @@ import { useQuery } from '@tanstack/react-query';
 import { Card, Checkbox, Divider, Grid, Group, SegmentedControl, Stack, Text } from '@mantine/core';
 import maplibregl, { type Map as MlMap } from 'maplibre-gl';
 import { useNavigate } from 'react-router-dom';
-import { STRUCTURE_TYPE_LABELS, type StructureType } from '@dique/shared';
+import { MACHINERY_ACCESS_COLORS, MACHINERY_ACCESS_LABELS, STRUCTURE_TYPE_LABELS, type StructureType } from '@dique/shared';
 import { api } from '../api';
 import { MapView, setGeoJson } from '../components/MapView';
 import { PHYSICAL_COLORS, INTERVENTION_COLORS, TYPE_COLORS } from '../components/Labels';
 import { PageHeader } from '../components/Help';
 
-type ColorBy = 'physicalStatus' | 'interventionStatus' | 'structureType';
+type ColorBy = 'physicalStatus' | 'interventionStatus' | 'structureType' | 'machineryAccess';
 const PALETTES: Record<ColorBy, Record<string, string>> = {
   physicalStatus: PHYSICAL_COLORS, interventionStatus: INTERVENTION_COLORS, structureType: TYPE_COLORS,
+  machineryAccess: { ...MACHINERY_ACCESS_COLORS, 'Sin dato': '#ced4da' },
 };
 
 function matchExpr(prop: ColorBy): maplibregl.ExpressionSpecification {
@@ -81,6 +82,7 @@ export function MapPage() {
           const prio = p.p && p.p !== 'null' ? `<br/>Prioridad: <b>${Number(p.p).toFixed(2)}</b>` : '<br/>Prioridad: falta información';
           html = `<b>${esc(p.code)}</b><br/>${esc(p.name)}<br/>Estado: ${esc(p.physicalStatus)}<br/>Trabajos: ${esc(p.interventionStatus)}`
             + `<br/>Ubicación: ${p.locationLabel === 'Documentado' ? 'confirmada' : 'aproximada'}${prio}`
+            + `<br/>Maquinaria: ${esc(p.machineryAccess === 'Sin dato' ? 'sin dato' : (MACHINERY_ACCESS_LABELS[p.machineryAccess] ?? p.machineryAccess))}`
             + `<br/><a href="/inventario/${esc(p.id)}" data-nav="1">Ver ficha completa</a>`;
         } else if (f.layer.id === 'mallas') {
           html = `<b>${esc(p.name)}</b><br/>Malla metálica que retiene rocas y lodo.<br/>Estado reportado: ${esc(p.estado)}`
@@ -119,9 +121,10 @@ export function MapPage() {
               <SegmentedControl orientation="vertical" fullWidth value={colorBy} onChange={(v) => setColorBy(v as ColorBy)} data={[
                 { value: 'physicalStatus', label: 'Estado' },
                 { value: 'interventionStatus', label: 'Trabajos' },
-                { value: 'structureType', label: 'Tipo' }]} />
+                { value: 'structureType', label: 'Tipo' },
+                { value: 'machineryAccess', label: '¿Llega maquinaria?' }]} />
               {Object.entries(legend).map(([k, c]) => (
-                <Group key={k} gap={8}><Dot color={c} /><Text size="sm">{colorBy === 'structureType' ? STRUCTURE_TYPE_LABELS[k as StructureType] : k}</Text></Group>
+                <Group key={k} gap={8}><Dot color={c} /><Text size="sm">{colorBy === 'structureType' ? STRUCTURE_TYPE_LABELS[k as StructureType] : colorBy === 'machineryAccess' ? (MACHINERY_ACCESS_LABELS[k] ?? k) : k}</Text></Group>
               ))}
               <Divider my={4} />
               <Text fw={600}>Borde del punto</Text>
