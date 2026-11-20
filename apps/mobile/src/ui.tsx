@@ -55,6 +55,6 @@ export const s = StyleSheet.create({
   label: { fontSize: 13, fontWeight: '700', color: C.text, marginTop: 12, marginBottom: 6 },
   dim: { fontSize: 13, color: C.dim },
   h: { fontSize: 17, fontWeight: '700', color: C.text, marginBottom: 4 },
-  input: { backgroundColor: '#fff', borderWidth: 1, borderColor: C.border, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15, color: C.text },
+  input: { backgroundColor: '#f1f3f5', borderWidth: 1, borderColor: '#ced4da', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15, color: C.text },
   row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
 });

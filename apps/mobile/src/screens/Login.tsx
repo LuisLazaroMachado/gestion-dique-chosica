@@ -44,13 +44,13 @@ export function LoginScreen({ onLogged }: { onLogged: () => void }) {
         </View>
         <Card>
           <Label>Correo</Label>
-          <TextInput style={s.input} value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" autoComplete="email" />
+          <TextInput placeholderTextColor="#868e96" style={s.input} value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" autoComplete="email" />
           <Label>Contraseña</Label>
-          <TextInput style={s.input} value={password} onChangeText={setPassword} secureTextEntry />
+          <TextInput placeholderTextColor="#868e96" style={s.input} value={password} onChangeText={setPassword} secureTextEntry />
           {showServer && (
             <>
               <Label>Servidor (API)</Label>
-              <TextInput style={s.input} value={server} onChangeText={setServer} autoCapitalize="none" keyboardType="url" />
+              <TextInput placeholderTextColor="#868e96" style={s.input} value={server} onChangeText={setServer} autoCapitalize="none" keyboardType="url" />
               <Dim>Para pruebas locales use la IP de la computadora, p. ej. http://192.168.1.48:3000</Dim>
             </>
           )}

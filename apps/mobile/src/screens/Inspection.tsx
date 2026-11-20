@@ -73,7 +73,7 @@ function ScoreSelector({ k, value, reason, onChange, onReason }: {
         </Text>
       </Pressable>
       {value === null && (
-        <TextInput style={s.input} placeholder="¿Por qué? (obligatorio), p. ej. no se ve desde un lugar seguro" value={reason} onChangeText={onReason} />
+        <TextInput placeholderTextColor="#868e96" style={s.input} placeholder="¿Por qué? (obligatorio), p. ej. no se ve desde un lugar seguro" value={reason} onChangeText={onReason} />
       )}
     </Card>
   );
@@ -179,9 +179,12 @@ export function InspectionScreen({ structureId, assignmentId, onDone, onCancel }
       <ScrollView contentContainerStyle={{ padding: 12, paddingBottom: 60 }} keyboardShouldPersistTaps="handled">
         <Card>
           <Dim>{st.name} · Inicio: {new Date(startedAt).toLocaleString('es-PE')}</Dim>
-          <Label>¿Te acompaña un especialista? (opcional)</Label>
-          <TextInput style={s.input} value={verifier} onChangeText={setVerifier} placeholder="Nombre" />
-          <TextInput style={[s.input, { marginTop: 6 }]} value={verifierRole} onChangeText={setVerifierRole} placeholder="Profesión o cargo" />
+          <Text style={{ fontWeight: '700', marginTop: 10 }}>¿Te acompaña un especialista? (opcional)</Text>
+          <Dim>Si alguien, como un ingeniero, te ayuda a evaluar, anota sus datos.</Dim>
+          <Label>Nombre del especialista</Label>
+          <TextInput placeholderTextColor="#868e96" style={s.input} value={verifier} onChangeText={setVerifier} placeholder="Ej.: Ing. Ana Torres" />
+          <Label>Profesión o cargo</Label>
+          <TextInput placeholderTextColor="#868e96" style={s.input} value={verifierRole} onChangeText={setVerifierRole} placeholder="Ej.: Ingeniera civil" />
         </Card>
         {(['D', 'C', 'A'] as Key[]).map((k) => (
           <ScoreSelector key={k} k={k} value={scores[k]} reason={reasons[k]}
@@ -195,13 +198,13 @@ export function InspectionScreen({ structureId, assignmentId, onDone, onCancel }
           </View>
         </Card>
         <Card>
-          <H>¿Cómo fue llegar?</H>
-          <Dim>Un acceso difícil no impide que se atienda la estructura.</Dim>
+          <H>¿Cómo es el camino hasta la estructura?</H>
+          <Dim>Tu observación del acceso. Ayuda a planificar cómo llegarán las personas y la maquinaria.</Dim>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 8 }}>
             {ACCESS_STATUSES.map((a) => <Chip key={a} label={ACCESS_LABELS[a]} selected={access === a} onPress={() => setAccess(a)} />)}
           </View>
           {(access === 'Difícil' || access === 'Restringido') && (
-            <TextInput style={s.input} placeholder="¿Qué lo dificultó? (obligatorio)" value={accessNotes} onChangeText={setAccessNotes} multiline />
+            <TextInput placeholderTextColor="#868e96" style={s.input} placeholder="¿Qué lo dificulta o impide? (obligatorio)" value={accessNotes} onChangeText={setAccessNotes} multiline />
           )}
         </Card>
         <Card>
@@ -240,7 +243,7 @@ export function InspectionScreen({ structureId, assignmentId, onDone, onCancel }
         </Card>
         <Card>
           <H>Observaciones</H>
-          <TextInput style={[s.input, { minHeight: 80, textAlignVertical: 'top' }]} multiline value={observations} onChangeText={setObservations}
+          <TextInput placeholderTextColor="#868e96" style={[s.input, { minHeight: 80, textAlignVertical: 'top' }]} multiline value={observations} onChangeText={setObservations}
             placeholder="Cualquier detalle importante: riesgos, cambios, si la ubicación no coincide…" />
         </Card>
         <Btn title="Guardar inspección" onPress={save} busy={busy} />

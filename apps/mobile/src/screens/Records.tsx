@@ -83,11 +83,11 @@ export function RecordsScreen({ onBack }: { onBack: () => void }) {
                   <Label>Nuevos valores (deja vacío lo que no cambia)</Label>
                   <View style={s.row}>
                     {(['D', 'C', 'A'] as const).map((k) => (
-                      <TextInput key={k} style={[s.input, { flex: 1 }]} placeholder={k} keyboardType="number-pad" maxLength={1}
+                      <TextInput placeholderTextColor="#868e96" key={k} style={[s.input, { flex: 1 }]} placeholder={k} keyboardType="number-pad" maxLength={1}
                         value={corr[k]} onChangeText={(v) => setCorr({ ...corr, [k]: v })} />
                     ))}
                   </View>
-                  <TextInput style={[s.input, { marginTop: 6 }]} placeholder="Motivo de la corrección (obligatorio)" value={corr.reason} onChangeText={(v) => setCorr({ ...corr, reason: v })} />
+                  <TextInput placeholderTextColor="#868e96" style={[s.input, { marginTop: 6 }]} placeholder="Motivo de la corrección (obligatorio)" value={corr.reason} onChangeText={(v) => setCorr({ ...corr, reason: v })} />
                   <View style={[s.row, { marginTop: 6 }]}>
                     <Btn title="Enviar corrección" onPress={() => submitCorrection(item.id)} style={{ flex: 1, paddingVertical: 8 }} />
                     <Btn title="Cancelar" kind="outline" onPress={() => setEditing(null)} style={{ flex: 1, paddingVertical: 8 }} />

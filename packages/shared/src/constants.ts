@@ -96,7 +96,7 @@ export const SCENARIO_LABEL = 'Escenario hipotético. No es una alerta oficial.'
 
 // ───── Textos visibles en lenguaje simple (los valores guardados no cambian) ─────
 export const ACCESS_LABELS: Record<string, string> = {
-  'Sin observación': 'Sin problemas', 'Difícil': 'Difícil', 'Restringido': 'Restringido', 'No determinado': 'No se sabe',
+  'Sin observación': 'Sin problemas', 'Difícil': 'Difícil', 'Restringido': 'Restringido', 'No determinado': 'No llegó hasta la estructura',
 };
 export const ORIGIN_LABELS: Record<string, string> = {
   linea_base_2024: 'Inventario inicial', ampliacion: 'Agregada después',

@@ -3,7 +3,7 @@
 export const PHYSICAL_STATUSES = ['Operativo', 'Deteriorado', 'Crítico', 'En evaluación'] as const;
 export const ACCESS_STATUSES = ['Sin observación', 'Difícil', 'Restringido', 'No determinado'] as const;
 // Texto visible (el valor guardado sigue siendo el del catálogo aprobado).
-export const ACCESS_LABELS: Record<string, string> = { 'Sin observación': 'Sin problemas', 'Difícil': 'Difícil', 'Restringido': 'Restringido', 'No determinado': 'No se sabe' };
+export const ACCESS_LABELS: Record<string, string> = { 'Sin observación': 'Sin problemas', 'Difícil': 'Difícil (pendiente, sin camino, obstáculos)', 'Restringido': 'Restringido (cerrado o requiere permiso)', 'No determinado': 'No llegué hasta la estructura' };
 
 export const SCALE_NAMES = { D: 'Daño en la estructura', C: 'Material acumulado (colmatación)', A: 'Erosión o deslizamiento activo' } as const;
 export const SCALE_DESCRIPTORS = {
