@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "description": "Priori Dique Chosica: inspección, priorización y planificación de estructuras de protección en Lurigancho-Chosica",
-  "workspaces": ["packages/*", "apps/api"],
+  "workspaces": ["packages/*", "apps/api", "apps/web"],
   "scripts": {
     "db:up": "docker compose -f infra/docker-compose.yml up -d",
     "db:down": "docker compose -f infra/docker-compose.yml down",
