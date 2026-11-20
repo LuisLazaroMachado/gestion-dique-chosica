@@ -1,0 +1,27 @@
+{
+  "expo": {
+    "name": "Priori Dique Inspector",
+    "slug": "priori-dique-inspector",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": { "image": "./assets/splash-icon.png", "resizeMode": "contain", "backgroundColor": "#1c4f82" },
+    "android": {
+      "package": "pe.priori.dique.inspector",
+      "versionCode": 1,
+      "adaptiveIcon": { "foregroundImage": "./assets/adaptive-icon.png", "backgroundColor": "#1c4f82" },
+      "edgeToEdgeEnabled": true,
+      "permissions": ["CAMERA", "ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION"]
+    },
+    "plugins": [
+      "expo-sqlite",
+      "expo-secure-store",
+      ["expo-image-picker", { "cameraPermission": "La app usa la cámara para fotografiar la estructura inspeccionada." }],
+      ["expo-location", { "locationWhenInUsePermission": "La ubicación del teléfono se guarda como evidencia de la inspección (no reemplaza la coordenada maestra)." }],
+      ["expo-build-properties", { "android": { "usesCleartextTraffic": true } }]
+    ],
+    "extra": { "apiUrl": "https://priori-dique-api.onrender.com" }
+  }
+}
