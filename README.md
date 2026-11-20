@@ -55,16 +55,18 @@ npx expo prebuild -p android
 cd android
 # Requiere JDK 17 (no 21/25) y el SDK de Android
 set JAVA_HOME=C:\Users\PC\.jdks\jdk-17.0.21+9
-gradlew assembleRelease
+gradlew assembleRelease --max-workers=1 -PreactNativeArchitectures=arm64-v8a
 # APK: android/app/build/outputs/apk/release/app-release.apk
 ```
+
+En Windows, compila desde una ruta corta para no chocar con el límite de 260 caracteres. Copia la app a `D:\pdm` y usa `GRADLE_USER_HOME=D:\pdm-gh`. El APK listo para instalar queda en `apps/mobile/build-output/priori-dique-inspector.apk`.
 
 La app apunta por defecto a la API en la nube. Para probar con una API local, en la pantalla de inicio de sesión toca **Configurar servidor** y usa la IP de la computadora (p. ej. `http://192.168.1.48:3000`).
 
 ## Despliegue
 
 - **Base de datos y fotos:** Supabase (PostgreSQL 17 + PostGIS 3.3, Storage S3 privado). Migraciones: `cd apps/api && npm run migrate` (usa `.env`).
-- **API y web:** Render (plan gratuito), desplegadas automáticamente en cada `git push` a `main`.
+- **API y web:** Render (plan gratuito). Después de `git push` a `main`, publica con `py tools/desplegar.py`. Render no recibe aviso automático de GitHub porque toma el repositorio por su URL pública.
 - Todo es estándar (PostgreSQL, S3, Node, sitio estático): se puede migrar a un hosting de pago o municipal sin reescribir.
 
 ## Calidad de los datos
