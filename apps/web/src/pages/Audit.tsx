@@ -92,7 +92,7 @@ export function AuditPage() {
                 <Group justify="space-between" align="flex-start" wrap="nowrap">
                   <div>
                     <Text size="sm">
-                      <b>{a.actor_name ?? 'El sistema'}</b>{a.actor_code ? ` (${a.actor_code})` : ''} {act.text}{a.entity_label ? <> <b>{a.entity_label}</b></> : null}
+                      <b>{a.actor_name ?? 'El sistema'}</b>{a.actor_code ? ` (${a.actor_code})` : ''} {act.text}{a.entity_label && a.action !== 'iniciar_sesion' ? <> <b>{a.entity_label}</b></> : null}
                     </Text>
                     {diff.length > 0 && diff.map((d) => <Text key={d} size="xs" c="dimmed">{d}</Text>)}
                     {a.reason && <Text size="xs" mt={2}>Motivo: {a.reason}</Text>}
