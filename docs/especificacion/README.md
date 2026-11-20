@@ -1,5 +1,5 @@
 # Priori Dique Chosica — Paquete oficial de transferencia
-Versión 1.0 · 19-11-2026 · Equipo Los Antihuaicos · Challenge for Change UPC 2026
+Versión 1.2 · 20-11-2026 (v1.0 del 19-11-2026) · Equipo Los Antihuaicos · Challenge for Change UPC 2026
 
 Este paquete consolida los requisitos, decisiones y especificaciones acordadas para continuar el proyecto en otra conversación. Todo el contenido está en Markdown.
 
@@ -8,6 +8,7 @@ Este paquete consolida los requisitos, decisiones y especificaciones acordadas p
 2. `00_TRANSFERENCIA/01_INSTRUCCIONES_NUEVO_CHAT.md`
 3. `00_TRANSFERENCIA/02_DECISIONES_APROBADAS.md`
 4. `00_TRANSFERENCIA/03_ESTADO_Y_LIMITACIONES.md`
+5. `00_TRANSFERENCIA/04_DECISIONES_DE_IMPLEMENTACION.md` (v1.2)
 
 ## Carpetas
 - `01_INVESTIGACION`: inventarios, fichas, exposición y análisis territorial.
@@ -19,4 +20,4 @@ Este paquete consolida los requisitos, decisiones y especificaciones acordadas p
 ## Convención
 Documentado = fuente identificable. Estimado = inferencia con método. Provisional = pendiente de verificar. Hipotético = escenario, no hecho observado.
 
-**Advertencia:** este paquete es una especificación y transferencia del proyecto; no es una aplicación implementada ni una validación hidráulica o estructural.
+**Advertencia:** este paquete es la especificación del proyecto. La implementación está en `apps/` (ver README de la raíz del repositorio). Ni la especificación ni la implementación constituyen una validación hidráulica o estructural.

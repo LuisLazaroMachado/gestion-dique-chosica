@@ -1,0 +1,18 @@
+# Consulta diaria a la API para que el proyecto gratuito de Supabase no se pause por inactividad
+# (se pausa tras 7 días sin uso). /health ejecuta una consulta a la base de datos.
+name: Mantener activo
+on:
+  schedule:
+    - cron: '17 13 * * *'   # 08:17 hora de Lima
+  workflow_dispatch:
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Consultar API (despierta Render y toca la base de datos)
+        run: |
+          for i in 1 2 3 4 5 6; do
+            if curl -fsS --max-time 90 https://priori-dique-api.onrender.com/health; then exit 0; fi
+            sleep 20
+          done
+          exit 1
