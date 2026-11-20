@@ -1,6 +1,8 @@
 # Priori Dique Chosica
 
-Sistema de información geográfica y gestión operativa para inspeccionar diques y otras estructuras de protección en Lurigancho-Chosica, priorizar su atención y planificar intervenciones. Equipo Los Antihuaicos — Challenge for Change UPC 2026.
+Sistema de información geográfica y gestión operativa para inspeccionar diques y otras estructuras de protección en Lurigancho-Chosica, priorizar su atención y planificar intervenciones. Equipo Los Antihuaicos, Challenge for Change UPC 2026.
+
+**¿Solo quieres probarlo?** Sigue la guía corta: [Cómo probar la web y la app](docs/COMO_PROBAR.md).
 
 > Herramienta de apoyo a la decisión humana. No certifica seguridad estructural, no emite alertas oficiales y su visualizador de escenarios no es una predicción hidráulica.
 
