@@ -8,7 +8,7 @@ import { badRequest, conflict, forbidden, notFound } from '../errors.js';
 import { parse } from '../util.js';
 
 const publicUser = (u: Record<string, any>) => ({
-  id: u.id, email: u.email, displayName: u.display_name, role: u.role,
+  id: u.id, staffCode: u.staff_code, email: u.email, displayName: u.display_name, role: u.role,
   canInspect: u.can_inspect, canViewAll: u.can_view_all, active: u.active, createdAt: u.created_at,
 });
 
@@ -67,8 +67,25 @@ export async function adminRoutes(app: FastifyInstance) {
     const limit = Math.min(Number(q.limit ?? 200), 1000);
     // El inspector solo consulta su propia actividad.
     const actor = user.role === 'inspector' ? user.id : (q.actorId ?? null);
+    // entity_label: a qué se refiere el cambio (código de estructura, nombre de persona o de ruta) para mostrarlo legible.
     const rows = await sql`
-      SELECT a.*, u.display_name AS actor_name FROM audit_log a LEFT JOIN users u ON u.id = a.actor_id
+      SELECT a.*, u.display_name AS actor_name, u.staff_code AS actor_code,
+             COALESCE(s.code || ' (' || s.name || ')', si.code, sv.code, se.code, sa.code, su.code, r.name, tu.display_name || ' (' || tu.staff_code || ')') AS entity_label
+        FROM audit_log a
+        LEFT JOIN users u ON u.id = a.actor_id
+        LEFT JOIN structures s ON a.entity_type = 'structure' AND s.id = a.entity_id
+        LEFT JOIN inspections i ON a.entity_type = 'inspection' AND i.id = a.entity_id
+        LEFT JOIN structures si ON si.id = i.structure_id
+        LEFT JOIN interventions iv ON a.entity_type = 'intervention' AND iv.id = a.entity_id
+        LEFT JOIN structures sv ON sv.id = iv.structure_id
+        LEFT JOIN exposure_estimates ee ON a.entity_type = 'exposure' AND ee.id = a.entity_id
+        LEFT JOIN structures se ON se.id = ee.structure_id
+        LEFT JOIN assignments asg ON a.entity_type = 'assignment' AND asg.id = a.entity_id
+        LEFT JOIN structures sa ON sa.id = asg.structure_id
+        LEFT JOIN urgencies ur ON a.entity_type = 'urgency' AND ur.id = a.entity_id
+        LEFT JOIN structures su ON su.id = ur.structure_id
+        LEFT JOIN routes r ON a.entity_type = 'route' AND r.id = a.entity_id
+        LEFT JOIN users tu ON a.entity_type = 'user' AND tu.id = a.entity_id
        WHERE (${q.entityType ?? null}::text IS NULL OR a.entity_type = ${q.entityType ?? null})
          AND (${q.entityId ?? null}::uuid IS NULL OR a.entity_id = ${q.entityId ?? null})
          AND (${actor}::uuid IS NULL OR a.actor_id = ${actor})

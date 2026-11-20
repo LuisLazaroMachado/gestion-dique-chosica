@@ -42,7 +42,7 @@ export async function recalculatePriorities(db: Db, actorId: string | null, reas
   const skipped: Array<{ structureId: string; code: string; reason: string }> = [];
   for (const r of rows) {
     if (!r.inspection_id) {
-      skipped.push({ structureId: r.id, code: r.code, reason: 'Sin inspección validada' });
+      skipped.push({ structureId: r.id, code: r.code, reason: 'Falta una inspección aprobada' });
       continue;
     }
     const res = computePriority({ d: r.d, c: r.c, a: r.a, n: r.exposure_id ? Number(r.n) : null, nMax });

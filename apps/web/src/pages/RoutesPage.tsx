@@ -1,118 +1,201 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ActionIcon, Alert, Badge, Button, Card, Grid, Group, MultiSelect, Stack, Table, Text, TextInput, Title } from '@mantine/core';
-import { IconArrowDown, IconArrowUp } from '@tabler/icons-react';
+import { Alert, Badge, Button, Card, Grid, Group, Loader, MultiSelect, Paper, Stack, Table, Text, TextInput } from '@mantine/core';
+import { IconGripVertical } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import maplibregl, { type Map as MlMap } from 'maplibre-gl';
 import { api, ApiError, type Structure } from '../api';
 import { MapView, setGeoJson, fitTo } from '../components/MapView';
 import { fmtDateTime } from '../components/Labels';
+import { PageHeader } from '../components/Help';
 
 const errMsg = (e: unknown) => (e instanceof ApiError ? e.full : String(e));
+const km = (m?: number | null) => (m == null ? '-' : `${(m / 1000).toFixed(1)} km`);
+const mins = (s?: number | null) => (s == null ? null : s >= 3600 ? `${Math.floor(s / 3600)} h ${Math.round((s % 3600) / 60)} min` : `${Math.round(s / 60)} min`);
+
+interface View { geometry: any; distanceM: number; durationS: number | null; provider: string; warnings: string[] }
 
 export function RoutesPage() {
   const qc = useQueryClient();
   const [selection, setSelection] = useState<string[]>([]);
   const [name, setName] = useState('Recorrido de maquinaria');
   const [machinery, setMachinery] = useState('');
-  const [route, setRoute] = useState<any | null>(null);
-  const [order, setOrder] = useState<string[]>([]);
+  const [route, setRoute] = useState<any | null>(null);       // ruta guardada
+  const [order, setOrder] = useState<string[]>([]);           // orden en pantalla
+  const [view, setView] = useState<View | null>(null);        // geometría mostrada (propuesta o vista previa)
+  const [previewing, setPreviewing] = useState(false);
   const [justification, setJustification] = useState('');
+  const dragFrom = useRef<number | null>(null);
+  const [dragOver, setDragOver] = useState<number | null>(null);
+  const mapRef = useRef<MlMap | null>(null);
+  const markers = useRef<maplibregl.Marker[]>([]);
   const structures = useQuery({ queryKey: ['structures'], queryFn: () => api<{ items: Structure[] }>('/structures') });
   const routes = useQuery({ queryKey: ['routes'], queryFn: () => api('/routes') });
+  const base = useQuery({ queryKey: ['settings'], queryFn: () => api('/settings') });
+  const baseInfo = base.data?.items.find((s: any) => s.key === 'base_central')?.value;
   const byId = new Map((structures.data?.items ?? []).map((s) => [s.id, s]));
+
+  const openRoute = (r: any) => {
+    setRoute(r); setOrder(r.structureIdsFinal); setJustification('');
+    setView({ geometry: r.geometry, distanceM: r.distanceM, durationS: r.durationS, provider: r.provider, warnings: r.warnings ?? [] });
+  };
+
   const calc = useMutation({
     mutationFn: () => api('/routes', { body: { name, structureIds: selection, machinery: machinery || null } }),
-    onSuccess: (r: any) => { setRoute(r); setOrder(r.structureIdsFinal); qc.invalidateQueries({ queryKey: ['routes'] }); },
+    onSuccess: (r: any) => { openRoute(r); qc.invalidateQueries({ queryKey: ['routes'] }); },
     onError: (e) => notifications.show({ color: 'red', message: errMsg(e) }),
   });
-  const reorder = useMutation({
+  const save = useMutation({
     mutationFn: () => api(`/routes/${route.id}/order`, { method: 'PATCH', body: { structureIdsFinal: order, justification } }),
-    onSuccess: (r: any) => { setRoute(r); setJustification(''); notifications.show({ color: 'green', message: 'Orden final guardado; el orden calculado se conserva.' }); qc.invalidateQueries({ queryKey: ['routes'] }); },
+    onSuccess: (r: any) => { openRoute(r); notifications.show({ color: 'green', message: 'Orden guardado. El orden que propuso el sistema también queda registrado.' }); qc.invalidateQueries({ queryKey: ['routes'] }); },
     onError: (e) => notifications.show({ color: 'red', message: errMsg(e) }),
   });
+
+  // Al cambiar el orden, el mapa se recalcula de inmediato (vista previa, sin guardar).
+  const changed = route && order.join() !== route.structureIdsFinal.join();
+  useEffect(() => {
+    if (!route || !changed) return;
+    const t = setTimeout(async () => {
+      setPreviewing(true);
+      try {
+        const p = await api('/routes/preview', { body: { structureIds: order } });
+        setView({ geometry: p.geometry, distanceM: p.distanceM, durationS: p.durationS, provider: p.provider, warnings: p.warnings });
+      } catch (e) { notifications.show({ color: 'red', message: errMsg(e) }); }
+      setPreviewing(false);
+    }, 350);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [order]);
 
   const draw = useCallback((map: MlMap) => {
-    if (!route) return;
-    setGeoJson(map, 'route', route.geometry);
-    if (!map.getLayer('route')) map.addLayer({ id: 'route', type: 'line', source: 'route', paint: { 'line-color': '#e8590c', 'line-width': 4 } });
-    const stops = {
-      type: 'FeatureCollection',
-      features: [
-        { type: 'Feature', geometry: { type: 'Point', coordinates: [route.base.lon, route.base.lat] }, properties: { label: 'Base' } },
-        ...route.structureIdsFinal.map((id: string, i: number) => {
-          const s = byId.get(id);
-          return { type: 'Feature', geometry: { type: 'Point', coordinates: [s?.location?.lon, s?.location?.lat] }, properties: { label: String(i + 1) } };
-        }),
-      ],
-    };
-    setGeoJson(map, 'stops', stops as any);
-    if (!map.getLayer('stops')) {
-      map.addLayer({ id: 'stops', type: 'circle', source: 'stops', paint: { 'circle-radius': 10, 'circle-color': '#1c4f82', 'circle-stroke-color': '#fff', 'circle-stroke-width': 2 } });
-      map.addLayer({ id: 'stops-label', type: 'symbol', source: 'stops', layout: { 'text-field': ['get', 'label'], 'text-size': 11, 'text-font': ['Open Sans Bold'] }, paint: { 'text-color': '#fff' } });
+    mapRef.current = map;
+    markers.current.forEach((m) => m.remove());
+    markers.current = [];
+    if (!view) return;
+    setGeoJson(map, 'route', view.geometry);
+    if (!map.getLayer('route')) {
+      map.addLayer({ id: 'route-casing', type: 'line', source: 'route', paint: { 'line-color': '#fff', 'line-width': 8 } });
+      map.addLayer({ id: 'route', type: 'line', source: 'route', paint: { 'line-color': '#e8590c', 'line-width': 5 } });
     }
-    const coords = route.geometry?.coordinates as Array<[number, number]>;
+    const mk = (lon: number, lat: number, label: string, color: string, title: string) => {
+      const el = document.createElement('div');
+      el.textContent = label;
+      el.title = title;
+      Object.assign(el.style, { background: color, color: '#fff', borderRadius: '14px', minWidth: '26px', height: '26px', padding: '0 6px',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '700', fontSize: '13px', border: '2px solid #fff',
+        boxShadow: '0 1px 4px rgba(0,0,0,.4)' });
+      markers.current.push(new maplibregl.Marker({ element: el }).setLngLat([lon, lat]).addTo(map));
+    };
+    const b = route?.base ?? baseInfo;
+    if (b?.lat != null) mk(b.lon, b.lat, 'Base', '#2b8a3e', 'Base de la maquinaria');
+    order.forEach((id, i) => {
+      const s = byId.get(id);
+      if (s?.location) mk(s.location.lon, s.location.lat, String(i + 1), '#1c4f82', `${i + 1}. ${s.code}`);
+    });
+    const coords = view.geometry?.coordinates as Array<[number, number]>;
     if (coords?.length) fitTo(map, coords);
-    void maplibregl;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [route, structures.data]);
+  }, [view, structures.data, order]);
 
-  const move = (i: number, d: number) => { const o = [...order]; [o[i], o[i + d]] = [o[i + d], o[i]]; setOrder(o); };
-  const changed = route && order.join() !== route.structureIdsFinal.join();
+  // Arrastrar y soltar para reordenar
+  const onDrop = (to: number) => {
+    const from = dragFrom.current;
+    dragFrom.current = null; setDragOver(null);
+    if (from == null || from === to) return;
+    const o = [...order];
+    const [item] = o.splice(from, 1);
+    o.splice(to, 0, item);
+    setOrder(o);
+  };
 
   return (
     <Stack>
-      <Title order={2}>Rutas de maquinaria</Title>
-      <Alert color="orange" variant="light">
-        El orden se calcula desde la base central (MVP: una maquinaria). El ruteo vial no garantiza restricciones de maquinaria pesada: revise siempre.
-        El acceso difícil no excluye estructuras; se advierte en la lista.
-      </Alert>
+      <PageHeader title="Rutas de maquinaria"
+        description="Planifica el recorrido de la maquinaria por varias estructuras, saliendo y volviendo a la base."
+        steps={[
+          'Elige las estructuras que la maquinaria debe visitar.',
+          'Presiona "Calcular recorrido": el sistema propone el orden más corto por las calles.',
+          'Si prefieres otro orden, arrastra las estructuras en la lista. El mapa se actualiza al instante.',
+          'Si cambiaste el orden, escribe el motivo y guárdalo.',
+        ]} />
       <Grid>
         <Grid.Col span={{ base: 12, md: 4 }}>
           <Card withBorder>
             <Stack>
-              <TextInput label="Nombre" value={name} onChange={(e) => setName(e.currentTarget.value)} />
-              <TextInput label="Maquinaria" value={machinery} onChange={(e) => setMachinery(e.currentTarget.value)} />
-              <MultiSelect label="Estructuras a visitar" searchable maxDropdownHeight={280}
-                data={(structures.data?.items ?? []).filter((s) => s.location).map((s) => ({ value: s.id, label: `${s.code} — ${s.watershed}` }))}
+              <MultiSelect label="1. Estructuras a visitar" searchable maxDropdownHeight={280} placeholder="Busca por código o quebrada"
+                data={(structures.data?.items ?? []).filter((s) => s.location).map((s) => ({ value: s.id, label: `${s.code} · ${s.name}` }))}
                 value={selection} onChange={setSelection} />
-              <Button onClick={() => calc.mutate()} loading={calc.isPending} disabled={!selection.length}>Calcular recorrido</Button>
+              <TextInput label="Nombre del recorrido" value={name} onChange={(e) => setName(e.currentTarget.value)} />
+              <TextInput label="Maquinaria (opcional)" placeholder="Ej.: retroexcavadora" value={machinery} onChange={(e) => setMachinery(e.currentTarget.value)} />
+              <Button onClick={() => calc.mutate()} loading={calc.isPending} disabled={!selection.length}>2. Calcular recorrido</Button>
+              {baseInfo?.name && <Text size="xs" c="dimmed">Sale y vuelve a: {baseInfo.name}</Text>}
             </Stack>
           </Card>
-          {route && (
+
+          {route && view && (
             <Card withBorder mt="md">
-              <Text fw={600}>Orden de visita</Text>
-              <Text size="xs" c="dimmed">Distancia: {(route.distanceM / 1000).toFixed(1)} km{route.durationS ? ` · ${(route.durationS / 60).toFixed(0)} min` : ''} · Proveedor: {route.provider}</Text>
-              {order.map((id, i) => (
-                <Group key={id} justify="space-between" mt={4}>
-                  <Text size="sm">{i + 1}. {byId.get(id)?.code} <Text span c="dimmed" size="xs">{byId.get(id)?.watershed}</Text></Text>
-                  <Group gap={2}>
-                    <ActionIcon size="sm" variant="subtle" disabled={i === 0} onClick={() => move(i, -1)}><IconArrowUp size={14} /></ActionIcon>
-                    <ActionIcon size="sm" variant="subtle" disabled={i === order.length - 1} onClick={() => move(i, 1)}><IconArrowDown size={14} /></ActionIcon>
-                  </Group>
-                </Group>
-              ))}
+              <Group justify="space-between">
+                <Text fw={600}>Orden de visita</Text>
+                {previewing && <Loader size="xs" />}
+              </Group>
+              <Text size="sm" mt={2}>Distancia total: <b>{km(view.distanceM)}</b>{mins(view.durationS) ? <> · Tiempo estimado en camión: <b>{mins(view.durationS)}</b></> : null}</Text>
+              {view.provider === 'linea_recta' && <Text size="xs" c="orange">Sin conexión al servicio de calles: se muestran líneas rectas.</Text>}
+              <Text size="xs" c="dimmed" mt={6} mb={4}>Arrastra para cambiar el orden:</Text>
+              <Paper withBorder p={4} radius="md" bg="gray.0">
+                <Group gap={6} p={6}><Badge color="green" variant="filled">Base</Badge><Text size="sm">Salida</Text></Group>
+                {order.map((id, i) => {
+                  const s = byId.get(id);
+                  return (
+                    <Paper key={id} draggable withBorder p={6} my={4} radius="sm"
+                      onDragStart={() => { dragFrom.current = i; }}
+                      onDragOver={(e) => { e.preventDefault(); setDragOver(i); }}
+                      onDragLeave={() => setDragOver(null)}
+                      onDrop={() => onDrop(i)}
+                      style={{ cursor: 'grab', borderColor: dragOver === i ? '#1c7ed6' : undefined, background: dragOver === i ? '#e7f5ff' : '#fff' }}>
+                      <Group gap={8} wrap="nowrap">
+                        <IconGripVertical size={16} color="#868e96" />
+                        <Badge circle size="lg" color="blue">{i + 1}</Badge>
+                        <div style={{ minWidth: 0 }}>
+                          <Text size="sm" fw={600}>{s?.code}</Text>
+                          <Text size="xs" c="dimmed" truncate>{s?.name}</Text>
+                        </div>
+                      </Group>
+                    </Paper>
+                  );
+                })}
+                <Group gap={6} p={6}><Badge color="green" variant="filled">Base</Badge><Text size="sm">Regreso</Text></Group>
+              </Paper>
               {changed && (
                 <Stack mt="sm" gap="xs">
-                  <TextInput label="Justificación del cambio de orden" required value={justification} onChange={(e) => setJustification(e.currentTarget.value)} />
-                  <Button size="xs" onClick={() => reorder.mutate()} loading={reorder.isPending}>Guardar orden final</Button>
+                  <TextInput label="¿Por qué cambias el orden?" placeholder="Ej.: primero la más urgente" required value={justification} onChange={(e) => setJustification(e.currentTarget.value)} />
+                  <Group>
+                    <Button size="xs" onClick={() => save.mutate()} loading={save.isPending} disabled={justification.trim().length < 3}>Guardar este orden</Button>
+                    <Button size="xs" variant="default" onClick={() => openRoute(route)}>Volver al orden anterior</Button>
+                  </Group>
                 </Stack>
               )}
-              {route.warnings?.map((w: string) => <Badge key={w} color="orange" variant="light" mt={6} style={{ whiteSpace: 'normal', height: 'auto' }}>{w}</Badge>)}
+              {view.warnings?.length > 0 && (
+                <Alert color="yellow" variant="light" mt="sm" p="xs" title="Antes de salir">
+                  {view.warnings.map((w) => <Text key={w} size="xs">• {w}</Text>)}
+                </Alert>
+              )}
             </Card>
           )}
         </Grid.Col>
         <Grid.Col span={{ base: 12, md: 8 }}>
-          <MapView height="65vh" onReady={draw} key={route?.id ?? 'none'} />
+          <MapView height="70vh" onReady={draw} />
         </Grid.Col>
       </Grid>
-      <Title order={4}>Rutas registradas</Title>
-      <Table striped>
-        <Table.Thead><Table.Tr><Table.Th>Fecha</Table.Th><Table.Th>Nombre</Table.Th><Table.Th>Paradas</Table.Th><Table.Th>Distancia</Table.Th><Table.Th>Orden editado</Table.Th><Table.Th>Autor</Table.Th><Table.Th /></Table.Tr></Table.Thead>
+
+      <Text fw={600} mt="md">Recorridos guardados</Text>
+      <Table striped highlightOnHover>
+        <Table.Thead><Table.Tr><Table.Th>Fecha</Table.Th><Table.Th>Nombre</Table.Th><Table.Th>Paradas</Table.Th><Table.Th>Distancia</Table.Th><Table.Th>¿Se cambió el orden?</Table.Th><Table.Th>Creado por</Table.Th><Table.Th /></Table.Tr></Table.Thead>
         <Table.Tbody>{routes.data?.items.map((r: any) => (
-          <Table.Tr key={r.id}><Table.Td>{fmtDateTime(r.createdAt)}</Table.Td><Table.Td>{r.name}</Table.Td><Table.Td>{r.structureIdsFinal.length}</Table.Td>
-            <Table.Td>{(r.distanceM / 1000).toFixed(1)} km</Table.Td><Table.Td>{r.editJustification ? `Sí — ${r.editJustification}` : 'No'}</Table.Td><Table.Td>{r.createdBy}</Table.Td>
-            <Table.Td><Button size="xs" variant="subtle" onClick={() => { setRoute(r); setOrder(r.structureIdsFinal); }}>Ver</Button></Table.Td></Table.Tr>))}</Table.Tbody>
+          <Table.Tr key={r.id}>
+            <Table.Td>{fmtDateTime(r.createdAt)}</Table.Td><Table.Td>{r.name}</Table.Td><Table.Td>{r.structureIdsFinal.length}</Table.Td>
+            <Table.Td>{km(r.distanceM)}</Table.Td><Table.Td>{r.editJustification ? `Sí: ${r.editJustification}` : 'No'}</Table.Td><Table.Td>{r.createdBy}</Table.Td>
+            <Table.Td><Button size="xs" variant="subtle" onClick={() => openRoute(r)}>Ver en el mapa</Button></Table.Td>
+          </Table.Tr>))}</Table.Tbody>
       </Table>
     </Stack>
   );

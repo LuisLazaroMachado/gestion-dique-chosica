@@ -247,7 +247,7 @@ for wname, pts in positions.items():
                    else f"F-02 IVC 005-2026-OCI/2157-SVC (cifras de IVC 034-2025), dique {i} de {len(pts)} (numeración de trabajo)")
         structures.append({
             "workingId": f"REG-{'2024' if baseline else '2026'}-{PREFIX[wname]}-{i:02d}",
-            "name": f"Dique {i} — Quebrada {wname}",
+            "name": f"Dique {i}, quebrada {wname}",
             "structureType": "dique_transversal",
             "material": "por_verificar",
             "watershed": wname,
@@ -275,7 +275,7 @@ for n in (1, 2):
     exp = exposure_for(zone)
     structures.append({
         "workingId": f"REG-2026-LRO-{n:02d}",
-        "name": f"Barrera dinámica {n} — Quebrada La Ronda",
+        "name": f"Barrera dinámica {n}, quebrada La Ronda",
         "structureType": "barrera_dinamica", "material": "malla_metalica", "watershed": "La Ronda",
         "originInventory": "ampliacion", "sourceNumber": n,
         "sourceReference": "IT 039-2024-MAHR (en F-01 p.3, Imagen 3); paquete v1.0 refiere 2 estructuras en La Ronda (ANA 04-03-2026, no localizado)",
@@ -297,14 +297,14 @@ ref_features = []
 for q, n, e, no, estado in MALLAS:
     lon, lat = to_wgs.transform(e, no)
     ref_features.append({"type": "Feature", "geometry": {"type": "Point", "coordinates": [round(lon, 6), round(lat, 6)]},
-                         "properties": {"layer": "mallas_documentadas", "name": f"Malla dinámica {n} — {q}", "estado": estado,
+                         "properties": {"layer": "mallas_documentadas", "name": f"Malla dinámica {n}, quebrada {q}", "estado": estado,
                                         "label": "Documentado", "source": "IT 039-2024-MAHR (F-01 p.3)"}})
 for wname in positions:
     pts = positions[wname]
     lon, lat = pts[0]
     line, _ = channel_line(H.snap(lon, lat, 2), up_cells=60)
     ref_features.append({"type": "Feature", "geometry": mapping(to_wgs_geom(line.simplify(10))),
-                         "properties": {"layer": "cauces_estimados", "name": f"Cauce estimado — {wname}", "label": "Estimado",
+                         "properties": {"layer": "cauces_estimados", "name": f"Cauce de la quebrada {wname}", "label": "Estimado",
                                         "source": "DEM Copernicus GLO-30, flujo D8"}})
 
 seed = {

@@ -111,7 +111,7 @@ export async function overviewRoutes(app: FastifyInstance) {
         FROM scenarios sc JOIN structures s ON s.id = sc.structure_id
        WHERE (${q.structureId ?? null}::uuid IS NULL OR sc.structure_id = ${q.structureId ?? null})
        ORDER BY s.code, sc.scenario_type`;
-    return { label: 'Escenario hipotético — no es alerta oficial', items: rows };
+    return { label: 'Escenario hipotético. No es una alerta oficial.', items: rows };
   });
 
   app.get('/scenarios/:id', async (req) => {

@@ -4,7 +4,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { getLastInspection, getStructure, type LocalStructure } from '../db';
 import { saveInspectionLocally } from '../sync';
-import { ACCESS_STATUSES, PHOTO_TYPES, PHYSICAL_STATUSES, SAFETY_RULES, SCALE_DESCRIPTORS, SCALE_NAMES, type PhotoType } from '../catalog';
+import { ACCESS_LABELS, ACCESS_STATUSES, PHOTO_TYPES, PHYSICAL_STATUSES, SAFETY_RULES, SCALE_DESCRIPTORS, SCALE_NAMES, type PhotoType } from '../catalog';
 import { Badge, Btn, C, Card, Chip, Dim, H, Label, PHYSICAL_COLORS, s } from '../ui';
 
 type Key = 'D' | 'C' | 'A';
@@ -27,25 +27,24 @@ export function StructureScreen({ structureId, onBack, onInspect }: { structureI
           <H>{st.name}</H>
           <View style={[s.row, { flexWrap: 'wrap', marginVertical: 4 }]}>
             <Badge text={st.physicalStatus} color={PHYSICAL_COLORS[st.physicalStatus]} />
-            <Badge text={st.originInventory === 'linea_base_2024' ? 'Línea base 2024' : 'Ampliación'} color={C.info} />
+            <Badge text={st.originInventory === 'linea_base_2024' ? 'Inventario inicial' : 'Agregada después'} color={C.info} />
           </View>
           <Dim>Quebrada: {st.watershed}</Dim>
-          <Dim>Coordenada maestra: {L ? `${L.lat.toFixed(6)}, ${L.lon.toFixed(6)}` : 'sin coordenadas'}</Dim>
-          {L && <Text style={{ color: L.label === 'Documentado' ? C.ok : C.warn, fontSize: 13 }}>Ubicación {L.label.toLowerCase()} ({L.confidence}). {L.label !== 'Documentado' ? 'Verifique en campo y reporte en observaciones si difiere.' : ''}</Text>}
-          {st.sourceReference ? <Dim>Fuente: {st.sourceReference}</Dim> : null}
+          <Dim>Ubicación registrada: {L ? `${L.lat.toFixed(6)}, ${L.lon.toFixed(6)}` : 'sin ubicación'}</Dim>
+          {L && <Text style={{ color: L.label === 'Documentado' ? C.ok : C.warn, fontSize: 13 }}>{L.label === 'Documentado' ? 'Ubicación confirmada.' : 'Ubicación aproximada: si en el lugar no coincide, anótalo en observaciones.'}</Text>}
         </Card>
         <Card>
           <H>Última inspección</H>
           {last ? (
             <>
-              <Dim>{new Date(last.inspected_at).toLocaleDateString('es-PE')} · {last.validation_status} · {last.data_label}</Dim>
-              <Text>D = {last.damage_score ?? '—'} · C = {last.clogging_score ?? '—'} · A = {last.active_process_score ?? '—'}</Text>
-              <Text>Estado físico: {last.physical_status} · Acceso: {last.access_status}</Text>
+              <Dim>{new Date(last.inspected_at).toLocaleDateString('es-PE')}</Dim>
+              <Text>Daño: {last.damage_score ?? 'sin dato'} · Material acumulado: {last.clogging_score ?? 'sin dato'} · Erosión: {last.active_process_score ?? 'sin dato'}</Text>
+              <Text>Estado: {last.physical_status} · Acceso: {ACCESS_LABELS[last.access_status] ?? last.access_status}</Text>
             </>
           ) : <Dim>Sin inspecciones previas.</Dim>}
         </Card>
         <Card style={{ borderColor: C.warn }}>
-          <H>Antes de empezar: seguridad</H>
+          <H>Antes de empezar: tu seguridad primero</H>
           {SAFETY_RULES.map((r) => <Text key={r} style={{ marginBottom: 3 }}>• {r}</Text>)}
         </Card>
         <Btn title="Nueva inspección" onPress={onInspect} />
@@ -59,7 +58,7 @@ function ScoreSelector({ k, value, reason, onChange, onReason }: {
 }) {
   return (
     <Card>
-      <H>{k} — {SCALE_NAMES[k]}</H>
+      <H>{k}: {SCALE_NAMES[k]}</H>
       {SCALE_DESCRIPTORS[k].map((d, i) => (
         <Pressable key={i} onPress={() => onChange(i)} style={{ flexDirection: 'row', paddingVertical: 7, alignItems: 'flex-start' }}>
           <View style={{ width: 30, height: 30, borderRadius: 15, borderWidth: 2, borderColor: C.primary, marginRight: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: value === i ? C.primary : '#fff' }}>
@@ -70,11 +69,11 @@ function ScoreSelector({ k, value, reason, onChange, onReason }: {
       ))}
       <Pressable onPress={() => onChange(null)} style={{ paddingVertical: 6 }}>
         <Text style={{ color: value === null ? C.danger : C.dim, fontWeight: value === null ? '700' : '400' }}>
-          {value === null ? '● ' : '○ '}No determinado (no se calculará la prioridad)
+          {value === null ? '● ' : '○ '}No se pudo evaluar
         </Text>
       </Pressable>
       {value === null && (
-        <TextInput style={s.input} placeholder="Motivo (obligatorio), p. ej. no visible desde punto seguro" value={reason} onChangeText={onReason} />
+        <TextInput style={s.input} placeholder="¿Por qué? (obligatorio), p. ej. no se ve desde un lugar seguro" value={reason} onChangeText={onReason} />
       )}
     </Card>
   );
@@ -127,12 +126,12 @@ export function InspectionScreen({ structureId, assignmentId, onDone, onCancel }
 
   const validate = (): string | null => {
     for (const k of ['D', 'C', 'A'] as Key[]) {
-      if (scores[k] === undefined) return `Seleccione un valor para ${k} (${SCALE_NAMES[k]}) o marque "No determinado".`;
-      if (scores[k] === null && !reasons[k].trim()) return `Indique el motivo por el que ${k} no se determinó.`;
+      if (scores[k] === undefined) return `Elige un valor para "${SCALE_NAMES[k]}" o marca "No se pudo evaluar".`;
+      if (scores[k] === null && !reasons[k].trim()) return `Explica por qué no se pudo evaluar "${SCALE_NAMES[k]}".`;
     }
-    if (!physical) return 'Seleccione el estado físico.';
-    if ((access === 'Difícil' || access === 'Restringido') && !accessNotes.trim()) return 'Describa la causa de la dificultad o restricción de acceso.';
-    if (!photos.some((p) => p.type === 'general')) return 'La foto de vista general es obligatoria (si es seguro tomarla).';
+    if (!physical) return 'Elige el estado general de la estructura.';
+    if ((access === 'Difícil' || access === 'Restringido') && !accessNotes.trim()) return 'Explica por qué fue difícil llegar.';
+    if (!photos.some((p) => p.type === 'general')) return 'La foto de vista general es obligatoria, si es seguro tomarla.';
     return null;
   };
 
@@ -162,7 +161,7 @@ export function InspectionScreen({ structureId, assignmentId, onDone, onCancel }
     };
     try {
       await saveInspectionLocally(structureId, payload, photos);
-      Alert.alert('Guardado en el teléfono', 'La inspección se enviará al sincronizar. No se perderá aunque cierre la app.');
+      Alert.alert('Inspección guardada', 'Quedó guardada en el teléfono. Se enviará cuando toques "Enviar pendientes" con internet. No se pierde aunque cierres la app.');
       onDone();
     } catch (e) {
       Alert.alert('Error al guardar', String(e));
@@ -180,29 +179,29 @@ export function InspectionScreen({ structureId, assignmentId, onDone, onCancel }
       <ScrollView contentContainerStyle={{ padding: 12, paddingBottom: 60 }} keyboardShouldPersistTaps="handled">
         <Card>
           <Dim>{st.name} · Inicio: {new Date(startedAt).toLocaleString('es-PE')}</Dim>
-          <Label>Especialista / verificador acompañante (opcional)</Label>
+          <Label>¿Te acompaña un especialista? (opcional)</Label>
           <TextInput style={s.input} value={verifier} onChangeText={setVerifier} placeholder="Nombre" />
-          <TextInput style={[s.input, { marginTop: 6 }]} value={verifierRole} onChangeText={setVerifierRole} placeholder="Cargo o especialidad" />
+          <TextInput style={[s.input, { marginTop: 6 }]} value={verifierRole} onChangeText={setVerifierRole} placeholder="Profesión o cargo" />
         </Card>
         {(['D', 'C', 'A'] as Key[]).map((k) => (
           <ScoreSelector key={k} k={k} value={scores[k]} reason={reasons[k]}
             onChange={(v) => setScores({ ...scores, [k]: v })} onReason={(r) => setReasons({ ...reasons, [k]: r })} />
         ))}
         <Card>
-          <H>Estado físico</H>
-          <Dim>Decisión del inspector; no se deriva automáticamente de D+C+A.</Dim>
+          <H>Estado general de la estructura</H>
+          <Dim>Tu evaluación general según lo que viste.</Dim>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 8 }}>
             {PHYSICAL_STATUSES.map((p) => <Chip key={p} label={p} selected={physical === p} color={PHYSICAL_COLORS[p]} onPress={() => setPhysical(p)} />)}
           </View>
         </Card>
         <Card>
-          <H>Accesibilidad</H>
-          <Dim>Dificultad no equivale a imposibilidad.</Dim>
+          <H>¿Cómo fue llegar?</H>
+          <Dim>Un acceso difícil no impide que se atienda la estructura.</Dim>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 8 }}>
-            {ACCESS_STATUSES.map((a) => <Chip key={a} label={a} selected={access === a} onPress={() => setAccess(a)} />)}
+            {ACCESS_STATUSES.map((a) => <Chip key={a} label={ACCESS_LABELS[a]} selected={access === a} onPress={() => setAccess(a)} />)}
           </View>
           {(access === 'Difícil' || access === 'Restringido') && (
-            <TextInput style={s.input} placeholder="Causa (obligatoria)" value={accessNotes} onChangeText={setAccessNotes} multiline />
+            <TextInput style={s.input} placeholder="¿Qué lo dificultó? (obligatorio)" value={accessNotes} onChangeText={setAccessNotes} multiline />
           )}
         </Card>
         <Card>
@@ -223,28 +222,28 @@ export function InspectionScreen({ structureId, assignmentId, onDone, onCancel }
               </ScrollView>
             </View>
           ))}
-          <Dim>Mantenga presionada una foto para quitarla. No fotografíe desde posiciones inseguras; evite rostros y placas.</Dim>
+          <Dim>Mantén presionada una foto para quitarla. No tomes fotos desde lugares peligrosos y evita captar rostros o placas.</Dim>
         </Card>
         <Card>
           <View style={[s.row, { justifyContent: 'space-between' }]}>
-            <H>GPS del teléfono (evidencia)</H>
+            <H>Ubicación del teléfono</H>
             <Switch value={useGps} onValueChange={(v) => { setUseGps(v); if (v) captureGps(); else setGps(null); }} />
           </View>
           {useGps && (gps ? (
             <>
               <Text>{gps.lat.toFixed(6)}, {gps.lon.toFixed(6)} {gps.accuracyM ? `(± ${gps.accuracyM.toFixed(0)} m)` : ''}</Text>
-              {gps.mock && <Badge text="Ubicación simulada (se registra como tal)" color={C.violet} />}
+              {gps.mock && <Badge text="Ubicación simulada (quedará marcada así)" color={C.violet} />}
             </>
           ) : <Dim>Obteniendo ubicación…</Dim>)}
-          <Dim>El GPS del teléfono no reemplaza la coordenada maestra de la estructura.</Dim>
+          <Dim>Se guarda como prueba de dónde se hizo la inspección.</Dim>
           {useGps && <Btn title="Actualizar GPS" kind="outline" onPress={captureGps} style={{ marginTop: 6, paddingVertical: 8 }} />}
         </Card>
         <Card>
           <H>Observaciones</H>
           <TextInput style={[s.input, { minHeight: 80, textAlignVertical: 'top' }]} multiline value={observations} onChangeText={setObservations}
-            placeholder="Detalles relevantes, diferencias de ubicación, riesgos observados…" />
+            placeholder="Cualquier detalle importante: riesgos, cambios, si la ubicación no coincide…" />
         </Card>
-        <Btn title="Revisar y guardar" onPress={save} busy={busy} />
+        <Btn title="Guardar inspección" onPress={save} busy={busy} />
       </ScrollView>
     </View>
   );

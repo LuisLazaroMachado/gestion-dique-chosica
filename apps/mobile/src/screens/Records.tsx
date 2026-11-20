@@ -5,7 +5,7 @@ import { queueCorrection, syncAll } from '../sync';
 import { Badge, Btn, C, Card, Dim, H, Label, s } from '../ui';
 
 const STATUS_COLORS: Record<string, string> = { pendiente: C.warn, enviado: C.info, confirmado: C.ok, error: C.danger };
-const STATUS_LABELS: Record<string, string> = { pendiente: 'Pendiente', enviado: 'Enviando', confirmado: 'Confirmado por el servidor', error: 'Error' };
+const STATUS_LABELS: Record<string, string> = { pendiente: 'Por enviar', enviado: 'Enviando', confirmado: 'Enviada', error: 'No se pudo enviar' };
 
 export function RecordsScreen({ onBack }: { onBack: () => void }) {
   const [rows, setRows] = useState<Array<OutboxInspection & { code: string; photos: any[]; corrections: any[] }>>([]);
@@ -42,17 +42,17 @@ export function RecordsScreen({ onBack }: { onBack: () => void }) {
     await queueCorrection(id, corr.reason.trim(), changes);
     setEditing(null); setCorr({ D: '', C: '', A: '', reason: '' });
     const r = await syncAll(); await load();
-    Alert.alert(r.ok ? 'Corrección enviada' : 'Corrección guardada', r.ok ? 'Queda registrada con antes/después y motivo.' : 'Se enviará al sincronizar.');
+    Alert.alert(r.ok ? 'Corrección enviada' : 'Corrección guardada', r.ok ? 'Queda registrado el valor anterior, el nuevo y el motivo.' : 'Se enviará cuando tengas internet.');
   };
 
   return (
     <View style={s.screen}>
       <View style={s.header}>
         <Pressable onPress={onBack}><Text style={s.headerLink}>‹ Volver</Text></Pressable>
-        <Text style={s.headerTitle}>Mis registros</Text>
+        <Text style={s.headerTitle}>Mis envíos</Text>
       </View>
       <FlatList data={rows} keyExtractor={(r) => r.id} contentContainerStyle={{ padding: 12, paddingBottom: 40 }}
-        ListEmptyComponent={<Dim>Aún no hay inspecciones registradas en este teléfono.</Dim>}
+        ListEmptyComponent={<Dim>Todavía no has hecho inspecciones en este teléfono.</Dim>}
         renderItem={({ item }) => {
           const p = JSON.parse(item.payload);
           return (
@@ -61,13 +61,13 @@ export function RecordsScreen({ onBack }: { onBack: () => void }) {
                 <H>{item.code}</H>
                 <Badge text={STATUS_LABELS[item.status] ?? item.status} color={STATUS_COLORS[item.status]} />
               </View>
-              <Dim>{new Date(p.inspectedAt).toLocaleString('es-PE')} · D {p.damageScore ?? '—'} · C {p.cloggingScore ?? '—'} · A {p.activeProcessScore ?? '—'} · {p.physicalStatus}</Dim>
-              <Dim>Fotos: {item.photos.filter((f: any) => f.status === 'confirmado').length}/{item.photos.length} confirmadas</Dim>
+              <Dim>{new Date(p.inspectedAt).toLocaleString('es-PE')} · Daño {p.damageScore ?? 's/d'} · Material {p.cloggingScore ?? 's/d'} · Erosión {p.activeProcessScore ?? 's/d'} · {p.physicalStatus}</Dim>
+              <Dim>Fotos enviadas: {item.photos.filter((f: any) => f.status === 'confirmado').length} de {item.photos.length}</Dim>
               {item.error ? <Text style={{ color: C.danger, marginTop: 4 }}>{item.error}</Text> : null}
               {item.photos.filter((f: any) => f.error).map((f: any) => <Text key={f.id} style={{ color: C.danger, fontSize: 12 }}>Foto {f.evidence_type}: {f.error}</Text>)}
               {item.validation_status && (
                 <Text style={{ marginTop: 4, fontWeight: '700', color: item.validation_status === 'Observado' ? C.warn : item.validation_status === 'Validado' ? C.ok : C.info }}>
-                  Revisión del responsable: {item.validation_status}{item.validation_notes ? ` — ${item.validation_notes}` : ''}
+                  {item.validation_status === 'Validado' ? 'Revisada y aprobada por el responsable' : item.validation_status === 'Observado' ? 'El responsable pidió revisar' : 'Esperando revisión del responsable'}{item.validation_notes ? `: ${item.validation_notes}` : ''}
                 </Text>
               )}
               {item.corrections.map((c: any) => (
@@ -80,7 +80,7 @@ export function RecordsScreen({ onBack }: { onBack: () => void }) {
               )}
               {editing === item.id && (
                 <View style={{ marginTop: 8 }}>
-                  <Label>Nuevos valores (deje vacío lo que no cambia)</Label>
+                  <Label>Nuevos valores (deja vacío lo que no cambia)</Label>
                   <View style={s.row}>
                     {(['D', 'C', 'A'] as const).map((k) => (
                       <TextInput key={k} style={[s.input, { flex: 1 }]} placeholder={k} keyboardType="number-pad" maxLength={1}

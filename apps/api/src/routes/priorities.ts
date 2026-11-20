@@ -78,9 +78,9 @@ export async function priorityRoutes(app: FastifyInstance) {
       SELECT s.id, s.code, s.name, s.watershed, s.physical_status,
         CASE
           WHEN NOT EXISTS (SELECT 1 FROM inspections i WHERE i.structure_id = s.id AND i.validation_status = 'Validado')
-            THEN 'Sin inspección validada'
-          WHEN NOT EXISTS (SELECT 1 FROM exposure_estimates e WHERE e.structure_id = s.id) THEN 'Sin exposición (N)'
-          ELSE 'Indicadores D/C/A incompletos en la última inspección validada'
+            THEN 'Falta una inspección aprobada'
+          WHEN NOT EXISTS (SELECT 1 FROM exposure_estimates e WHERE e.structure_id = s.id) THEN 'Falta el número de personas expuestas'
+          ELSE 'La última inspección aprobada no evaluó daño, material o erosión'
         END AS reason
         FROM structures s
        WHERE s.active AND NOT EXISTS (SELECT 1 FROM priority_calculations pc WHERE pc.batch_id = ${batch.id} AND pc.structure_id = s.id)

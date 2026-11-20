@@ -19,7 +19,7 @@ export class ApiError extends Error {
   constructor(public status: number, message: string, public details?: unknown) { super(message); }
   get full() {
     if (Array.isArray(this.details) && this.details.length) {
-      return `${this.message}: ${this.details.map((d: any) => `${d.campo ? d.campo + ' — ' : ''}${d.mensaje}`).join('; ')}`;
+      return `${this.message}: ${this.details.map((d: any) => `${d.campo ? d.campo + ': ' : ''}${d.mensaje}`).join('; ')}`;
     }
     return this.message;
   }

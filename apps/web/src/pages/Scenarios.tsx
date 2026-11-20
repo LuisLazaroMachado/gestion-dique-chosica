@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Alert, Badge, Button, Card, Checkbox, Code, Grid, Group, Select, Slider, Stack, Text, Title } from '@mantine/core';
+import { Alert, Badge, Button, Card, Checkbox, Grid, Group, Select, Slider, Stack, Text, List } from '@mantine/core';
+import { IconPlayerPause, IconPlayerPlay, IconRefresh, IconDownload } from '@tabler/icons-react';
 import type { Map as MlMap } from 'maplibre-gl';
 import { SCENARIO_LABEL } from '@dique/shared';
 import { api } from '../api';
 import { MapView, setGeoJson, fitTo } from '../components/MapView';
+import { PageHeader } from '../components/Help';
 
-// Visualizador nivel A: muestra el corredor hipotético por relieve y una animación conceptual del avance.
+// Simulador de huaico (visualización geográfica): muestra por dónde bajaría el material según la forma del terreno.
 // No calcula hidráulica: no muestra profundidad, velocidad, caudal ni tiempo de llegada.
 
 function cumulative(coords: Array<[number, number]>) {
@@ -33,6 +35,7 @@ export function ScenariosPage() {
   const coords: Array<[number, number]> = sc?.corridor?.coordinates?.[0] ?? [];
   const cum = cumulative(coords);
   const total = cum[cum.length - 1] ?? 0;
+  const exp = exposure.data?.features.find((f: any) => f.properties.structureId === structureId);
 
   const partial = useCallback((pct: number) => {
     const target = (total * pct) / 100;
@@ -46,14 +49,14 @@ export function ScenariosPage() {
     mapRef.current = map;
     if (!sc) return;
     setGeoJson(map, 'zone', sc.zone);
-    if (!map.getLayer('zone')) map.addLayer({ id: 'zone', type: 'fill', source: 'zone', paint: { 'fill-color': '#7950f2', 'fill-opacity': 0.18 } });
+    if (!map.getLayer('zone')) map.addLayer({ id: 'zone', type: 'fill', source: 'zone', paint: { 'fill-color': '#7950f2', 'fill-opacity': 0.2 } });
     setGeoJson(map, 'flow', { type: 'LineString', coordinates: partial(progress) });
-    if (!map.getLayer('flow')) map.addLayer({ id: 'flow', type: 'line', source: 'flow', paint: { 'line-color': '#5f3dc4', 'line-width': 5, 'line-opacity': 0.85 } });
+    if (!map.getLayer('flow')) map.addLayer({ id: 'flow', type: 'line', source: 'flow', paint: { 'line-color': '#5f3dc4', 'line-width': 6, 'line-opacity': 0.9 } });
     setGeoJson(map, 'origin', { type: 'Point', coordinates: coords[0] });
-    if (!map.getLayer('origin')) map.addLayer({ id: 'origin', type: 'circle', source: 'origin', paint: { 'circle-radius': 8, 'circle-color': '#e03131', 'circle-stroke-color': '#fff', 'circle-stroke-width': 2 } });
+    if (!map.getLayer('origin')) map.addLayer({ id: 'origin', type: 'circle', source: 'origin', paint: { 'circle-radius': 9, 'circle-color': '#e03131', 'circle-stroke-color': '#fff', 'circle-stroke-width': 2 } });
     if (exposure.data) {
       setGeoJson(map, 'exp', { ...exposure.data, features: exposure.data.features.filter((f: any) => f.properties.structureId === sc.structure_id) });
-      if (!map.getLayer('exp')) map.addLayer({ id: 'exp', type: 'line', source: 'exp', paint: { 'line-color': '#1c7ed6', 'line-width': 1, 'line-dasharray': [1, 1] } });
+      if (!map.getLayer('exp')) map.addLayer({ id: 'exp', type: 'line', source: 'exp', paint: { 'line-color': '#1c7ed6', 'line-width': 1.5, 'line-dasharray': [1, 1] } });
     }
     fitTo(map, coords, 50);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -74,44 +77,57 @@ export function ScenariosPage() {
     return () => clearInterval(t);
   }, [playing]);
 
+  const exportGeoJson = () => {
+    if (!sc) return;
+    const blob = new Blob([JSON.stringify({ type: 'FeatureCollection', features: [
+      { type: 'Feature', geometry: sc.corridor, properties: { tipo: 'recorrido', estructura: sc.code, aviso: SCENARIO_LABEL } },
+      { type: 'Feature', geometry: sc.zone, properties: { tipo: 'zona', estructura: sc.code, aviso: SCENARIO_LABEL } },
+    ], parametros: sc.parameters, limitaciones: sc.limitations }, null, 2)], { type: 'application/geo+json' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `simulacion-${sc.code}.geojson`; a.click();
+  };
+
   return (
     <Stack>
-      <Title order={2}>Escenarios — visualizador geográfico (nivel A)</Title>
-      <Alert color="violet" title={SCENARIO_LABEL}>
-        Animación conceptual del corredor que seguiría el material según el relieve si la estructura perdiera contención. No es predicción hidráulica,
-        no declara zonas seguras fuera del corredor y no recomienda evacuaciones. Profundidad, velocidad, caudal y tiempo de llegada no se muestran porque
-        los datos y el modelo no los soportan.
+      <PageHeader title="Simulador de huaico"
+        description="Muestra por dónde podría bajar el lodo y las piedras si un dique dejara de contenerlos, siguiendo la forma del terreno hasta el río Rímac."
+        steps={['Elige un dique.', 'Presiona "Reproducir" para ver el recorrido animado.', 'Activa "Viviendas en la zona" para ver el área con personas expuestas.']} />
+      <Alert color="violet" variant="light" title={SCENARIO_LABEL}>
+        Es una simulación aproximada para apoyar la planificación. No predice cuándo ocurrirá un huaico, ni su profundidad o velocidad, y no reemplaza
+        las alertas oficiales. Estar fuera de la zona marcada no significa estar a salvo.
       </Alert>
       <Grid>
         <Grid.Col span={{ base: 12, md: 4 }}>
           <Card withBorder>
             <Stack>
-              <Select label="Estructura de origen" searchable value={structureId} onChange={(v) => { setStructureId(v); setProgress(100); }}
-                data={items.map((i: any) => ({ value: i.structure_id, label: `${i.code} — ${i.structure_name}` }))} />
+              <Select label="Dique" placeholder="Elige un dique" searchable value={structureId} onChange={(v) => { setStructureId(v); setProgress(100); }}
+                data={items.map((i: any) => ({ value: i.structure_id, label: `${i.code} · ${i.structure_name}` }))} />
               {sc && (
                 <>
-                  <Group gap="xs"><Badge color="violet">{sc.scenario_type}</Badge><Badge variant="outline">Validación: nivel {sc.validation_level}</Badge><Badge color="violet" variant="dot">{sc.data_label}</Badge></Group>
-                  <Text size="sm" fw={600}>{sc.name}</Text>
-                  <Text size="sm">Longitud del corredor: {(total / 1000).toFixed(2)} km</Text>
                   <Group>
-                    <Button size="xs" onClick={() => { if (progress >= 100) setProgress(0); setPlaying(!playing); }}>{playing ? 'Pausar' : 'Reproducir'}</Button>
-                    <Button size="xs" variant="default" onClick={() => { setPlaying(false); setProgress(0); }}>Reiniciar</Button>
+                    <Button leftSection={playing ? <IconPlayerPause size={16} /> : <IconPlayerPlay size={16} />}
+                      onClick={() => { if (progress >= 100) setProgress(0); setPlaying(!playing); }}>{playing ? 'Pausar' : 'Reproducir'}</Button>
+                    <Button variant="default" leftSection={<IconRefresh size={16} />} onClick={() => { setPlaying(false); setProgress(0); }}>Reiniciar</Button>
                   </Group>
-                  <Slider value={progress} onChange={setProgress} label={(v) => `${v}% del recorrido`} />
-                  <Checkbox label="Zona potencial (corredor ampliado)" checked={showZone} onChange={(e) => setShowZone(e.currentTarget.checked)} />
-                  <Checkbox label="Polígono de exposición" checked={showExposure} onChange={(e) => setShowExposure(e.currentTarget.checked)} />
-                  <Text size="xs" fw={600}>Parámetros</Text>
-                  <Code block>{JSON.stringify(sc.parameters, null, 2)}</Code>
-                  <Text size="xs" fw={600}>Limitaciones</Text>
-                  <Text size="xs">{sc.limitations}</Text>
-                  <Text size="xs" c="dimmed">Motor {sc.engine_version} · Fuentes: {sc.sources}</Text>
-                  <Button size="xs" variant="light" onClick={() => {
-                    const blob = new Blob([JSON.stringify({ type: 'FeatureCollection', features: [
-                      { type: 'Feature', geometry: sc.corridor, properties: { tipo: 'corredor', escenario: sc.scenario_type, estructura: sc.code, etiqueta: SCENARIO_LABEL } },
-                      { type: 'Feature', geometry: sc.zone, properties: { tipo: 'zona', escenario: sc.scenario_type, estructura: sc.code, etiqueta: SCENARIO_LABEL } },
-                    ], parametros: sc.parameters, limitaciones: sc.limitations }, null, 2)], { type: 'application/geo+json' });
-                    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `escenario-${sc.code}.geojson`; a.click();
-                  }}>Exportar GeoJSON</Button>
+                  <div>
+                    <Text size="xs" c="dimmed">Avance del recorrido</Text>
+                    <Slider value={progress} onChange={setProgress} label={(v) => `${v}%`} />
+                  </div>
+                  <Card withBorder bg="gray.0" p="sm">
+                    <Text size="sm">Recorrido hasta el río: <b>{(total / 1000).toFixed(2)} km</b></Text>
+                    {exp && <Text size="sm">Personas en la zona (aprox.): <b>{Math.round(Number(exp.properties.n))}</b></Text>}
+                  </Card>
+                  <Checkbox label="Zona que podría verse afectada" checked={showZone} onChange={(e) => setShowZone(e.currentTarget.checked)} />
+                  <Checkbox label="Viviendas en la zona (personas expuestas)" checked={showExposure} onChange={(e) => setShowExposure(e.currentTarget.checked)} />
+                  <div>
+                    <Text size="xs" fw={600}>Cómo se calculó</Text>
+                    <List size="xs" spacing={2}>
+                      <List.Item>Se siguió la pendiente del terreno desde el dique hasta el río, usando un modelo de relieve satelital con detalle de unos 30 metros.</List.Item>
+                      <List.Item>La zona marcada abarca unos {sc.parameters?.ancho_tramo_m ?? 35} m a cada lado del recorrido y {sc.parameters?.ancho_abanico_m ?? 70} m en la parte baja, donde el material se esparce.</List.Item>
+                      <List.Item>Para un estudio de ingeniería se necesitan mediciones topográficas detalladas y la revisión de un especialista.</List.Item>
+                    </List>
+                  </div>
+                  <Group gap="xs"><Badge color="violet" variant="light">Simulación aproximada</Badge></Group>
+                  <Button size="xs" variant="light" leftSection={<IconDownload size={14} />} onClick={exportGeoJson}>Descargar mapa (GeoJSON)</Button>
                 </>
               )}
             </Stack>

@@ -12,13 +12,13 @@ const NAV = [
   { to: '/', label: 'Tablero', icon: IconLayoutDashboard },
   { to: '/mapa', label: 'Mapa', icon: IconMap2 },
   { to: '/inventario', label: 'Inventario', icon: IconBuildingBridge },
-  { to: '/asignaciones', label: 'Asignaciones', icon: IconClipboardList },
-  { to: '/inspecciones', label: 'Inspecciones', icon: IconClipboardCheck },
-  { to: '/priorizacion', label: 'Priorización', icon: IconChartBar },
-  { to: '/intervenciones', label: 'Intervenciones', icon: IconTool },
-  { to: '/rutas', label: 'Rutas', icon: IconRoute },
-  { to: '/escenarios', label: 'Escenarios (nivel A)', icon: IconWaveSine },
-  { to: '/auditoria', label: 'Auditoría', icon: IconHistory },
+  { to: '/asignaciones', label: 'Encargar inspecciones', icon: IconClipboardList },
+  { to: '/inspecciones', label: 'Revisar inspecciones', icon: IconClipboardCheck },
+  { to: '/priorizacion', label: 'Prioridades', icon: IconChartBar },
+  { to: '/intervenciones', label: 'Trabajos (intervenciones)', icon: IconTool },
+  { to: '/rutas', label: 'Rutas de maquinaria', icon: IconRoute },
+  { to: '/escenarios', label: 'Simulador de huaico', icon: IconWaveSine },
+  { to: '/auditoria', label: 'Historial de cambios', icon: IconHistory },
   { to: '/usuarios', label: 'Usuarios', icon: IconUsers },
   { to: '/configuracion', label: 'Configuración', icon: IconSettings },
 ];
@@ -35,10 +35,10 @@ export function Layout() {
             <Burger opened={opened} onClick={toggle} hiddenFrom="sm" size="sm" />
             <img src="/favicon.svg" width={28} height={28} alt="" />
             <Text fw={700}>Priori Dique Chosica</Text>
-            <Badge variant="light" color="gray" visibleFrom="md">Apoyo a la decisión — no certifica seguridad ni emite alertas</Badge>
+            <Badge variant="light" color="gray" visibleFrom="md">Herramienta de apoyo a la decisión</Badge>
           </Group>
           <Group gap="xs">
-            <Text size="sm" visibleFrom="sm">{user?.displayName} · {user ? ROLE_LABELS[user.role] : ''}</Text>
+            <Text size="sm" visibleFrom="sm">{user?.displayName}{user && user.displayName !== ROLE_LABELS[user.role] ? ` · ${ROLE_LABELS[user.role]}` : ''}{user?.staffCode ? ` · ${user.staffCode}` : ''}</Text>
             <Button size="xs" variant="subtle" leftSection={<IconLogout size={16} />} onClick={logout}>Salir</Button>
           </Group>
         </Group>

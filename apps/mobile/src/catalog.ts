@@ -2,8 +2,10 @@
 // (la app móvil es un proyecto independiente para no mezclar versiones de React con la web).
 export const PHYSICAL_STATUSES = ['Operativo', 'Deteriorado', 'Crítico', 'En evaluación'] as const;
 export const ACCESS_STATUSES = ['Sin observación', 'Difícil', 'Restringido', 'No determinado'] as const;
+// Texto visible (el valor guardado sigue siendo el del catálogo aprobado).
+export const ACCESS_LABELS: Record<string, string> = { 'Sin observación': 'Sin problemas', 'Difícil': 'Difícil', 'Restringido': 'Restringido', 'No determinado': 'No se sabe' };
 
-export const SCALE_NAMES = { D: 'Daño estructural', C: 'Colmatación', A: 'Proceso activo' } as const;
+export const SCALE_NAMES = { D: 'Daño en la estructura', C: 'Material acumulado (colmatación)', A: 'Erosión o deslizamiento activo' } as const;
 export const SCALE_DESCRIPTORS = {
   D: [
     'Sin daño relevante observable',
@@ -26,11 +28,11 @@ export const SCALE_DESCRIPTORS = {
 } as const;
 
 export const PHOTO_TYPES = [
-  { value: 'general', label: 'Vista general', hint: 'Obligatoria en toda inspección' },
-  { value: 'colmatacion', label: 'Cauce / colmatación', hint: 'Cuando sea visible y seguro' },
-  { value: 'dano', label: 'Daño', hint: 'Si se registra daño (D ≥ 1)' },
-  { value: 'proceso', label: 'Ladera / cauce', hint: 'Si hay proceso activo (A ≥ 1)' },
-  { value: 'acceso', label: 'Acceso', hint: 'Si el acceso es difícil o restringido (máx. 3)' },
+  { value: 'general', label: 'Vista general', hint: 'Obligatoria' },
+  { value: 'colmatacion', label: 'Material acumulado', hint: 'Si se ve y es seguro' },
+  { value: 'dano', label: 'Daño', hint: 'Si hay daño' },
+  { value: 'proceso', label: 'Erosión o deslizamiento', hint: 'Si hay erosión o deslizamiento' },
+  { value: 'acceso', label: 'Camino de acceso', hint: 'Si fue difícil llegar (máx. 3)' },
 ] as const;
 export type PhotoType = (typeof PHOTO_TYPES)[number]['value'];
 
@@ -39,5 +41,5 @@ export const SAFETY_RULES = [
   'No ingresar al cauce activo ni acercarse a bordes o estructuras inestables.',
   'Trabajar acompañado, de día y con el EPP definido.',
   'Si cambian las condiciones, suspender: la seguridad prevalece.',
-  'No acercarse a confirmar un daño si implica riesgo; registrar "No determinado" con el motivo.',
+  'Si confirmar un daño implica riesgo, no te acerques: marca "No se pudo evaluar" y explica por qué.',
 ];

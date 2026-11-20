@@ -12,7 +12,7 @@ export class ApiError extends Error {
   /** Mensaje legible con el detalle de validación, si existe. */
   get full(): string {
     if (Array.isArray(this.details) && this.details.length) {
-      return `${this.message}: ${this.details.map((d: { campo?: string; mensaje?: string }) => `${d.campo ? d.campo + ' — ' : ''}${d.mensaje}`).join('; ')}`;
+      return `${this.message}: ${this.details.map((d: { campo?: string; mensaje?: string }) => `${d.campo ? d.campo + ': ' : ''}${d.mensaje}`).join('; ')}`;
     }
     return this.message;
   }
@@ -75,7 +75,7 @@ export interface Structure {
   lastInspectionAt?: string | null; nextInspectionDue?: string | null;
 }
 export interface User {
-  id: string; email: string; displayName: string; role: 'inspector' | 'planner' | 'admin'; canInspect: boolean; canViewAll: boolean; active?: boolean;
+  id: string; staffCode?: string; email: string; displayName: string; role: 'inspector' | 'planner' | 'admin'; canInspect: boolean; canViewAll: boolean; active?: boolean;
 }
 export interface PriorityItem {
   structureId: string; code: string; name: string; watershed: string; originInventory: string; physicalStatus: string;

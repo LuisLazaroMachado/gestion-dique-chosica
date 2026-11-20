@@ -22,14 +22,14 @@ export function LoginScreen({ onLogged }: { onLogged: () => void }) {
       const me = await api('/me');
       if (me.user.role !== 'inspector' && !me.user.canInspect) {
         await setToken(null);
-        throw new ApiError(403, 'Este usuario no tiene permiso para inspeccionar. La gestión se hace en la web.');
+        throw new ApiError(403, 'Esta cuenta no es de inspector. La gestión se hace desde la página web.');
       }
       await kvSet('user', JSON.stringify(me.user));
       await downloadAssignments();
       onLogged();
     } catch (e) {
       Alert.alert('No se pudo ingresar', e instanceof ApiError
-        ? (e.status === 0 ? 'Sin conexión con el servidor. Si es la primera conexión del día, el servidor puede tardar ~1 minuto en despertar: reintente.' : e.full)
+        ? (e.status === 0 ? 'No hay conexión con el servidor. Si es la primera vez en el día, puede tardar cerca de 1 minuto en responder: inténtalo de nuevo.' : e.full)
         : String(e));
     }
     setBusy(false);
@@ -57,7 +57,7 @@ export function LoginScreen({ onLogged }: { onLogged: () => void }) {
           <Btn title="Ingresar" onPress={login} busy={busy} style={{ marginTop: 16 }} disabled={!email || !password} />
           <Btn title={showServer ? 'Ocultar servidor' : 'Configurar servidor'} kind="outline" onPress={() => setShowServer(!showServer)} style={{ marginTop: 8 }} />
         </Card>
-        <Dim>Tras ingresar, las asignaciones quedan guardadas en el teléfono para trabajar sin conexión.</Dim>
+        <Dim>Al ingresar, tus estructuras por inspeccionar se guardan en el teléfono para que puedas trabajar sin internet.</Dim>
       </ScrollView>
     </KeyboardAvoidingView>
   );

@@ -5,7 +5,8 @@ import { authenticate, requireRole } from '../auth.js';
 import { audit } from '../audit.js';
 import { badRequest, notFound } from '../errors.js';
 import { parse, toPoint } from '../util.js';
-import { buildGeometry, orderStops, type Pt } from '../services/routing.js';
+import { optimizeRoute, routeInOrder, type Pt } from '../services/routing.js';
+import { z } from 'zod';
 
 // Intervenciones y rutas: planificación operativa del responsable.
 
@@ -127,29 +128,38 @@ export async function operationsRoutes(app: FastifyInstance) {
     return { ...mapRoute(r), history };
   });
 
-  // Calcula el recorrido desde la base central. El acceso difícil NO excluye estructuras: solo se advierte.
+  // Carga las estructuras de una ruta y verifica que tengan coordenadas.
+  async function loadStops(ids: string[]) {
+    const rows = await sql`
+      SELECT s.id, s.code, ST_Y(s.geom) AS lat, ST_X(s.geom) AS lon, s.location_label,
+             (SELECT access_status FROM inspections i WHERE i.structure_id = s.id ORDER BY inspected_at DESC LIMIT 1) AS access_status
+        FROM structures s WHERE s.id = ANY(${ids}) AND s.active`;
+    if (rows.length !== new Set(ids).size) throw badRequest('Alguna estructura no existe o está inactiva');
+    const noGeom = rows.filter((r) => r.lat == null);
+    if (noGeom.length) throw badRequest(`Sin ubicación: ${noGeom.map((r) => r.code).join(', ')}`);
+    const byId = new Map(rows.map((r) => [r.id as string, r]));
+    return { rows, byId, pts: (list: string[]): Pt[] => list.map((i) => ({ id: i, lat: byId.get(i)!.lat, lon: byId.get(i)!.lon })) };
+  }
+
+  function routeNotes(rows: Array<Record<string, any>>, providerWarnings: string[]) {
+    const notes = [...providerWarnings];
+    for (const r of rows) {
+      if (r.access_status === 'Difícil' || r.access_status === 'Restringido') notes.push(`${r.code}: el último inspector reportó acceso ${r.access_status.toLowerCase()}. Se incluye igual; revisa cómo llegar.`);
+    }
+    return notes;
+  }
+
+  // Propone el orden más corto desde la base central y lo guarda. El acceso difícil NO excluye estructuras.
   app.post('/routes', async (req, reply) => {
     const user = await authenticate(req);
     requireRole(user, 'planner', 'admin');
     const b = parse(routeInput, req.body);
     const base = await getBase(sql);
-    const rows = await sql`
-      SELECT s.id, s.code, ST_Y(s.geom) AS lat, ST_X(s.geom) AS lon, s.location_label,
-             (SELECT access_status FROM inspections i WHERE i.structure_id = s.id ORDER BY inspected_at DESC LIMIT 1) AS access_status
-        FROM structures s WHERE s.id = ANY(${b.structureIds}) AND s.active`;
-    if (rows.length !== b.structureIds.length) throw badRequest('Alguna estructura no existe o está inactiva');
-    const noGeom = rows.filter((r) => r.lat == null);
-    if (noGeom.length) throw badRequest(`Sin coordenadas: ${noGeom.map((r) => r.code).join(', ')}`);
-    const stops: Pt[] = rows.map((r) => ({ id: r.id, lat: r.lat, lon: r.lon }));
+    const { rows, pts } = await loadStops(b.structureIds);
     const basePt: Pt = { id: 'base', lat: base.lat, lon: base.lon };
-    const order = orderStops(basePt, stops);
-    const geo = await buildGeometry(basePt, order);
-    const warnings = [...geo.warnings];
-    for (const r of rows) {
-      if (r.access_status === 'Difícil' || r.access_status === 'Restringido') warnings.push(`${r.code}: acceso ${r.access_status.toLowerCase()} (incluida; revisar logística)`);
-      if (r.location_label !== 'Documentado') warnings.push(`${r.code}: ubicación ${String(r.location_label).toLowerCase()}`);
-    }
-    const ids = order.map((p) => p.id);
+    const geo = await optimizeRoute(basePt, pts(b.structureIds));
+    const warnings = routeNotes(rows, geo.warnings);
+    const ids = geo.order.map((p) => p.id);
     const line = `SRID=4326;LINESTRING(${geo.coordinates.map(([x, y]) => `${x} ${y}`).join(',')})`;
     const created = await sql.begin(async (tx) => {
       const [r] = await tx`
@@ -166,23 +176,37 @@ export async function operationsRoutes(app: FastifyInstance) {
     return created;
   });
 
-  // Edición manual del orden: se conserva el orden calculado y se exige justificación.
+  // Vista previa de un orden (no guarda nada): permite que el mapa se actualice al reordenar.
+  app.post('/routes/preview', async (req) => {
+    const user = await authenticate(req);
+    requireRole(user, 'planner', 'admin');
+    const b = parse(z.object({ structureIds: z.array(z.string().uuid()).min(1).max(30) }), req.body);
+    const base = await getBase(sql);
+    const { rows, pts } = await loadStops(b.structureIds);
+    const geo = await routeInOrder({ id: 'base', lat: base.lat, lon: base.lon }, pts(b.structureIds));
+    return {
+      structureIds: b.structureIds, geometry: { type: 'LineString', coordinates: geo.coordinates },
+      distanceM: geo.distanceM, durationS: geo.durationS, provider: geo.provider, warnings: routeNotes(rows, geo.warnings),
+    };
+  });
+
+  // Guarda el orden final elegido por el responsable: se conserva el orden propuesto y se exige justificación.
   app.patch('/routes/:id/order', async (req) => {
     const user = await authenticate(req);
     requireRole(user, 'planner', 'admin');
     const { id } = req.params as { id: string };
     const b = parse(routeReorder, req.body);
+    const [r] = await sql`SELECT *, ST_Y(base_geom) AS base_lat, ST_X(base_geom) AS base_lon FROM routes WHERE id = ${id}`;
+    if (!r) throw notFound();
+    const same = [...b.structureIdsFinal].sort().join() === [...r.structure_ids_calc].sort().join();
+    if (!same) throw badRequest('El orden final debe contener las mismas estructuras');
+    const { pts } = await loadStops(b.structureIdsFinal);
+    const geo = await routeInOrder({ id: 'base', lat: r.base_lat, lon: r.base_lon }, pts(b.structureIdsFinal));
+    const line = `SRID=4326;LINESTRING(${geo.coordinates.map(([x, y]) => `${x} ${y}`).join(',')})`;
     return sql.begin(async (tx) => {
-      const [r] = await tx`SELECT *, ST_Y(base_geom) AS base_lat, ST_X(base_geom) AS base_lon FROM routes WHERE id = ${id} FOR UPDATE`;
-      if (!r) throw notFound();
-      const same = [...b.structureIdsFinal].sort().join() === [...r.structure_ids_calc].sort().join();
-      if (!same) throw badRequest('El orden final debe contener las mismas estructuras');
-      const pts = await tx`SELECT id, ST_Y(geom) AS lat, ST_X(geom) AS lon FROM structures WHERE id = ANY(${b.structureIdsFinal})`;
-      const byId = new Map(pts.map((p) => [p.id, { id: p.id, lat: p.lat, lon: p.lon }]));
-      const geo = await buildGeometry({ id: 'base', lat: r.base_lat, lon: r.base_lon }, b.structureIdsFinal.map((i) => byId.get(i)!));
-      const line = `SRID=4326;LINESTRING(${geo.coordinates.map(([x, y]) => `${x} ${y}`).join(',')})`;
       await tx`UPDATE routes SET structure_ids_final = ${b.structureIdsFinal}, edit_justification = ${b.justification},
-               geom = ${line}::geometry, distance_m = ${geo.distanceM}, duration_s = ${geo.durationS} WHERE id = ${id}`;
+               geom = ${line}::geometry, distance_m = ${geo.distanceM}, duration_s = ${geo.durationS},
+               provider = ${geo.provider}, provider_profile = ${geo.profile} WHERE id = ${id}`;
       await audit(tx, { actorId: user.id, action: 'editar_orden_ruta', entityType: 'route', entityId: id,
         before: { order: r.structure_ids_final }, after: { order: b.structureIdsFinal }, reason: b.justification });
       const [full] = await tx`${ROUTE_SELECT(tx)} WHERE r.id = ${id}`;

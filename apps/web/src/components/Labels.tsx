@@ -1,5 +1,5 @@
 import { Badge, Tooltip } from '@mantine/core';
-import { STRUCTURE_TYPE_LABELS, type StructureType } from '@dique/shared';
+import { DATA_LABEL_TEXT, ORIGIN_HELP, ORIGIN_LABELS, STRUCTURE_TYPE_LABELS, type StructureType } from '@dique/shared';
 
 // Colores por dimensión. Cada dimensión tiene su propia leyenda (estado físico ≠ intervención ≠ tipo).
 export const PHYSICAL_COLORS: Record<string, string> = {
@@ -25,11 +25,11 @@ export function TypeBadge({ value }: { value: string }) {
 }
 
 const LABEL_HELP: Record<string, string> = {
-  Documentado: 'Dato tomado de una fuente identificable.',
-  Estimado: 'Inferencia con método explícito; no verificado. Reemplazar con dato verificado.',
-  Provisional: 'Pendiente de verificar.',
-  'Demostración': 'Dato ficticio para mostrar el funcionamiento.',
-  'Hipotético': 'Escenario, no hecho observado.',
+  Documentado: 'Dato confirmado: viene de un documento oficial o de una medición en campo.',
+  Estimado: 'Dato aproximado: se calculó con un método, pero aún no se confirmó en campo.',
+  Provisional: 'Dato pendiente de confirmar.',
+  'Demostración': 'Dato de prueba para mostrar cómo funciona el sistema.',
+  'Hipotético': 'Resultado de una simulación, no de algo que ocurrió.',
 };
 const LABEL_COLORS: Record<string, string> = {
   Documentado: 'teal', Estimado: 'orange', Provisional: 'yellow', 'Demostración': 'grape', 'Hipotético': 'violet',
@@ -39,21 +39,23 @@ export function DataLabel({ value, size = 'sm' }: { value: string | null | undef
   if (!value) return null;
   return (
     <Tooltip label={LABEL_HELP[value] ?? value} withArrow multiline w={260}>
-      <Badge size={size} color={LABEL_COLORS[value] ?? 'gray'} variant="dot">{value}</Badge>
+      <Badge size={size} color={LABEL_COLORS[value] ?? 'gray'} variant="dot">{DATA_LABEL_TEXT[value] ?? value}</Badge>
     </Tooltip>
   );
 }
 
 export function OriginBadge({ value }: { value: string }) {
-  return value === 'linea_base_2024'
-    ? <Badge size="sm" variant="light" color="indigo">Línea base 2024</Badge>
-    : <Badge size="sm" variant="light" color="cyan">Ampliación</Badge>;
+  return (
+    <Tooltip label={ORIGIN_HELP[value]} withArrow multiline w={260}>
+      <Badge size="sm" variant="light" color={value === 'linea_base_2024' ? 'indigo' : 'cyan'}>{ORIGIN_LABELS[value] ?? value}</Badge>
+    </Tooltip>
+  );
 }
 
 // Fechas sin hora (DATE) llegan como medianoche UTC: se muestran en UTC para no restar un día.
 const isDateOnly = (d: string) => /^\d{4}-\d{2}-\d{2}$/.test(d) || /T00:00:00(\.000)?Z$/.test(d);
 export const fmtDate = (d?: string | null) =>
-  d ? new Date(d).toLocaleDateString('es-PE', { timeZone: isDateOnly(d) ? 'UTC' : 'America/Lima' }) : '—';
+  d ? new Date(d).toLocaleDateString('es-PE', { timeZone: isDateOnly(d) ? 'UTC' : 'America/Lima' }) : '-';
 export const fmtDateTime = (d?: string | null) =>
-  d ? new Date(d).toLocaleString('es-PE', { timeZone: 'America/Lima', dateStyle: 'short', timeStyle: 'short' }) : '—';
-export const fmt = (n: number | null | undefined, digits = 4) => (n == null ? '—' : Number(n).toFixed(digits));
+  d ? new Date(d).toLocaleString('es-PE', { timeZone: 'America/Lima', dateStyle: 'short', timeStyle: 'short' }) : '-';
+export const fmt = (n: number | null | undefined, digits = 4) => (n == null ? '-' : Number(n).toFixed(digits));

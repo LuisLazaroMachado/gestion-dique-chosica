@@ -10,6 +10,7 @@ const secret = new TextEncoder().encode(config.jwtSecret);
 
 export interface AuthUser {
   id: string;
+  staffCode: string;
   email: string;
   displayName: string;
   role: Role;
@@ -64,10 +65,10 @@ export async function authenticate(req: FastifyRequest): Promise<AuthUser> {
     throw unauthorized();
   }
   const [u] = await sql`
-    SELECT id, email, display_name, role, can_inspect, can_view_all, active FROM users WHERE id = ${sub}`;
+    SELECT id, staff_code, email, display_name, role, can_inspect, can_view_all, active FROM users WHERE id = ${sub}`;
   if (!u || !u.active) throw unauthorized('Usuario inexistente o desactivado');
   const user: AuthUser = {
-    id: u.id, email: u.email, displayName: u.display_name, role: u.role,
+    id: u.id, staffCode: u.staff_code, email: u.email, displayName: u.display_name, role: u.role,
     canInspect: u.can_inspect, canViewAll: u.can_view_all,
   };
   req.user = user;

@@ -167,7 +167,7 @@ describe('Priorización', () => {
     expect(v.statusCode).toBe(200);
     const p = await call('planner', 'GET', '/priorities');
     expect(p.json().items).toHaveLength(0);
-    expect(p.json().notCalculated.find((x: { id: string }) => x.id === ids.s1).reason).toMatch(/exposición/i);
+    expect(p.json().notCalculated.find((x: { id: string }) => x.id === ids.s1).reason).toMatch(/personas expuestas/i);
   });
   it('al validar, la estructura toma el estado físico observado', async () => {
     const s = await call('planner', 'GET', `/structures/${ids.s1}`);
@@ -194,7 +194,7 @@ describe('Priorización', () => {
     await call('planner', 'POST', `/inspections/${ids.iIncomplete}/validate`, { decision: 'Validado' });
     const p = await call('planner', 'GET', '/priorities');
     expect(p.json().items.find((x: { structureId: string }) => x.structureId === ids.s2)).toBeUndefined();
-    expect(p.json().notCalculated.find((x: { id: string }) => x.id === ids.s2).reason).toMatch(/incompletos/);
+    expect(p.json().notCalculated.find((x: { id: string }) => x.id === ids.s2).reason).toMatch(/no evaluó/);
   });
   it('actualizar N exige motivo y conserva el valor anterior', async () => {
     const bad = await call('planner', 'POST', '/exposure-estimates', {
@@ -254,6 +254,15 @@ describe('Rutas', () => {
     expect(ok.json().structureIdsCalc).toEqual(route.structureIdsCalc);
     expect(ok.json().structureIdsFinal).toEqual(reversed);
   });
+  it('la vista previa devuelve la ruta sin guardar nada', async () => {
+    const [{ n: before }] = await sql`SELECT count(*)::int AS n FROM routes`;
+    const r = await call('planner', 'POST', '/routes/preview', { structureIds: [ids.s2, ids.s1] });
+    expect(r.statusCode).toBe(200);
+    expect(r.json().geometry.coordinates.length).toBeGreaterThan(1);
+    expect(r.json().distanceM).toBeGreaterThan(0);
+    const [{ n: after }] = await sql`SELECT count(*)::int AS n FROM routes`;
+    expect(after).toBe(before);
+  });
 });
 
 describe('Evidencias', () => {
@@ -294,6 +303,13 @@ describe('Usuarios desactivados', () => {
     expect(me.statusCode).toBe(401);
     const [u] = await sql`SELECT id FROM users WHERE id = ${ids.insp2}`;
     expect(u).toBeTruthy();
+  });
+  it('cada cuenta nueva recibe un código de personal según su rol', async () => {
+    const r = await call('planner', 'POST', '/users', { email: 'nuevo.inspector@t.pe', displayName: 'Nuevo inspector', role: 'inspector', password: 'abcdefgh1' });
+    expect(r.statusCode).toBe(201);
+    expect(r.json().staffCode).toMatch(/^INS-\d{3}$/);
+    const [{ n }] = await sql`SELECT count(*)::int AS n FROM users WHERE staff_code = ${r.json().staffCode}`;
+    expect(n).toBe(1);
   });
   it('el responsable no puede crear administradores', async () => {
     const r = await call('planner', 'POST', '/users', { email: 'nuevo@t.pe', displayName: 'Nuevo', role: 'admin', password: 'abcdefgh1' });

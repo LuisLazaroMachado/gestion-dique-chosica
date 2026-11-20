@@ -27,7 +27,7 @@ export const STRUCTURE_TYPES = ['dique_transversal', 'barrera_dinamica', 'muro_e
 export type StructureType = (typeof STRUCTURE_TYPES)[number];
 export const STRUCTURE_TYPE_LABELS: Record<StructureType, string> = {
   dique_transversal: 'Dique transversal',
-  barrera_dinamica: 'Barrera (malla) dinámica',
+  barrera_dinamica: 'Malla dinámica',
   muro_encauzamiento: 'Muro de encauzamiento',
   otro: 'Otro',
 };
@@ -49,12 +49,12 @@ export const EVIDENCE_TYPES = [
 export type EvidenceType = (typeof EVIDENCE_TYPES)[number];
 export const EVIDENCE_TYPE_LABELS: Record<EvidenceType, string> = {
   general: 'Vista general',
-  colmatacion: 'Cauce / colmatación',
+  colmatacion: 'Material acumulado',
   dano: 'Daño',
-  proceso: 'Proceso activo (ladera/cauce)',
-  acceso: 'Acceso',
-  intervencion_antes: 'Intervención — antes',
-  intervencion_despues: 'Intervención — después',
+  proceso: 'Erosión o deslizamiento',
+  acceso: 'Camino de acceso',
+  intervencion_antes: 'Trabajo: antes',
+  intervencion_despues: 'Trabajo: después',
   documento: 'Documento',
 };
 
@@ -89,6 +89,29 @@ export const SCALE_DESCRIPTORS = {
   ],
 } as const;
 
-export const SCALE_NAMES = { D: 'Daño estructural', C: 'Colmatación', A: 'Proceso activo' } as const;
+export const SCALE_NAMES = { D: 'Daño en la estructura', C: 'Material acumulado (colmatación)', A: 'Erosión o deslizamiento activo' } as const;
+export const SCALE_SHORT = { D: 'Daño', C: 'Material acumulado', A: 'Erosión' } as const;
 
-export const SCENARIO_LABEL = 'Escenario hipotético — no es alerta oficial';
+export const SCENARIO_LABEL = 'Escenario hipotético. No es una alerta oficial.';
+
+// ───── Textos visibles en lenguaje simple (los valores guardados no cambian) ─────
+export const ACCESS_LABELS: Record<string, string> = {
+  'Sin observación': 'Sin problemas', 'Difícil': 'Difícil', 'Restringido': 'Restringido', 'No determinado': 'No se sabe',
+};
+export const ORIGIN_LABELS: Record<string, string> = {
+  linea_base_2024: 'Inventario inicial', ampliacion: 'Agregada después',
+};
+export const ORIGIN_HELP: Record<string, string> = {
+  linea_base_2024: 'Una de las 52 estructuras identificadas por la Contraloría en diciembre de 2024.',
+  ampliacion: 'Estructura identificada o construida después del inventario inicial.',
+};
+/** Qué tan seguro es un dato, en palabras simples. */
+export const DATA_LABEL_TEXT: Record<string, string> = {
+  Documentado: 'Confirmado', Estimado: 'Aproximado', Provisional: 'Por confirmar', 'Demostración': 'De prueba', 'Hipotético': 'Simulado',
+};
+export const VALIDATION_LABELS: Record<string, string> = {
+  Enviado: 'Por revisar', Validado: 'Aprobada', Observado: 'Devuelta',
+};
+export const ASSIGNMENT_STATUS_LABELS: Record<string, string> = {
+  asignada: 'Por hacer', en_curso: 'En curso', completada: 'Hecha', cancelada: 'Cancelada',
+};
