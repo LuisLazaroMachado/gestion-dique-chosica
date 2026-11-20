@@ -1,0 +1,17 @@
+# Entorno local de desarrollo: base de datos PostGIS.
+# Las fotos se guardan en disco local (STORAGE_DRIVER=local); en la nube se usa S3 de Supabase.
+services:
+  db:
+    image: postgis/postgis:17-3.5
+    environment:
+      POSTGRES_USER: dique
+      POSTGRES_PASSWORD: dique_local
+      POSTGRES_DB: dique
+    ports: ["5433:5432"]
+    volumes: [dbdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dique"]
+      interval: 5s
+      retries: 10
+volumes:
+  dbdata:

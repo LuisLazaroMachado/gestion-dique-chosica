@@ -1,3 +1,30 @@
+# Secretos
 .env
 .env.*
 !.env.example
+
+# Dependencias y builds
+node_modules/
+dist/
+build/
+.expo/
+*.tsbuildinfo
+coverage/
+
+# Android / Expo
+apps/mobile/android/
+apps/mobile/ios/
+*.apk
+*.aab
+*.keystore
+
+# Datos geográficos pesados (se regeneran con tools/geodata)
+tools/geodata/cache/
+tools/geodata/.venv/
+__pycache__/
+
+# Sistema
+.DS_Store
+Thumbs.db
+data/
+credenciales*.txt
