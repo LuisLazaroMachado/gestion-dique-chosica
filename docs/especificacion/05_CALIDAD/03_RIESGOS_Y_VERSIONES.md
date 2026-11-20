@@ -28,5 +28,6 @@
 | Versión | Fecha | Cambio |
 |---|---|---|
 | 1.0 | 19-11-2026 | Consolidación de especificaciones y acuerdos |
+| 1.1 | 19-11-2026 | Aclaraciones de implementación (ver `02_DECISIONES_APROBADAS.md`), hallazgos de fuentes primarias y paquete movido a `docs/especificacion/`. Autor: Claude por encargo del equipo. Impacto: ninguno sobre fórmula, estados, roles ni alcance. |
 
 Cambios futuros requieren motivo, impacto, autor, fecha y actualización de documentos afectados.

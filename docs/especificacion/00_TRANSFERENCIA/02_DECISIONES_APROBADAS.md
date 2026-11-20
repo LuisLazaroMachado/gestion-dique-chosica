@@ -44,3 +44,13 @@ Distinguir histórico, estimación geográfica y escenario hipotético. No decla
 
 ## Formato
 Toda la documentación se entrega en Markdown `.md`; el SQL se incluye dentro de bloques de código en archivos `.md`.
+
+## Aclaraciones v1.1 (19-11-2026, aprobadas por el equipo)
+No cambian la fórmula, los estados, los roles ni el alcance; precisan cómo se implementan.
+1. **Formato:** la regla "todo en Markdown" aplica a la documentación. El código de las aplicaciones (TypeScript, SQL de migraciones, etc.) va en sus archivos normales.
+2. **Datos faltantes:** si un dato no existe en fuentes públicas, se estima con un método explícito y se etiqueta como `Estimado` con su nivel de confianza, visible en la aplicación. Se reemplaza por el dato verificado desde la web, con auditoría (no editando código). Esto aplica la regla 6 de las instrucciones; no se presentan estimaciones como verificadas.
+3. **Datos de demostración:** se permiten datos ficticios ubicados de forma realista (por ejemplo, sobre el cauce real de cada quebrada), siempre marcados como estimados o de demostración.
+4. **GPS en pruebas:** las pruebas de campo pueden usar ubicación simulada; la app registra si la ubicación del teléfono es simulada.
+5. **Objetivo y plataforma:** sistema para uso municipal real; app móvil solo para Android; presupuesto inicial US$0 (servicios gratuitos), migrable a hosting de pago o municipal sin reescribir.
+6. **Simulación:** la primera versión implementa el nivel A (visualizador geográfico), como ya preveía `04_SIMULACION/04_MOTOR_Y_GUIA.md`.
+7. **Línea base:** se mantienen los 52 diques del informe 031-2024-OCI/2157-SVC. Las cifras municipales (IT 039-2024-MAHR) se registran como fuente alternativa para conciliar (ver `01_INVESTIGACION/07_HALLAZGOS_FUENTES_PRIMARIAS.md`).
