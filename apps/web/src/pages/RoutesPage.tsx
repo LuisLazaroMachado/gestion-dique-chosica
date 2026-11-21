@@ -182,6 +182,9 @@ export function RoutesPage() {
                         <Stack gap={2} mt={4} ml={28}>
                           <Group gap={4}><MachineryBadge value={stops[id].machineryAccess} />
                             {stops[id].vehiclePoint && <Badge size="xs" variant="light" color="orange">Termina en el punto del vehículo</Badge>}</Group>
+                          {stops[id].vehiclePointFarKm != null && (
+                            <Text size="xs" c="red.7">El punto del vehículo está lejos del dique (a {String(stops[id].vehiclePointFarKm).replace('.', ',')} km); revísalo. La ruta llega hasta el dique.</Text>
+                          )}
                           {stops[id].accessObstacles?.length > 0 && (
                             <Text size="xs" c="dimmed">Obstáculos: {stops[id].accessObstacles.map((o: string) => ACCESS_OBSTACLE_LABELS[o] ?? o).join(', ')}</Text>
                           )}

@@ -300,6 +300,29 @@ describe('Rutas con acceso de maquinaria', () => {
     expect(['No', null]).toContain(stop.machineryAccess);
     expect(r.json().warnings.join(' ')).toMatch(/maquinaria|acceso/i);
   });
+  it('un punto del vehículo a más de 2 km del dique se ignora y se avisa', async () => {
+    const far = await call('insp', 'POST', '/inspections', inspectionBody(ids.s2, {
+      inspectedAt: new Date(Date.now() - 120_000).toISOString(), machineryAccess: 'Solo pequeña', accessObstacles: ['camino_angosto'],
+      vehiclePoint: { lat: -12.05, lon: -77.03, mock: false },
+    }));
+    expect(far.statusCode).toBe(201);
+    let r = await call('planner', 'POST', '/routes/preview', { structureIds: [ids.s2] });
+    expect(r.statusCode).toBe(200);
+    let stop = r.json().stops.find((x: { structureId: string }) => x.structureId === ids.s2);
+    expect(stop.vehiclePoint).toBeNull();
+    expect(stop.vehiclePointFarKm).toBeGreaterThan(2);
+    expect(r.json().warnings.join(' ')).toMatch(/lejos del dique/);
+
+    const near = await call('insp', 'POST', '/inspections', inspectionBody(ids.s2, {
+      inspectedAt: new Date(Date.now() - 60_000).toISOString(), machineryAccess: 'Solo pequeña', accessObstacles: ['camino_angosto'],
+      vehiclePoint: { lat: -11.9215, lon: -76.7005, mock: true },
+    }));
+    expect(near.statusCode).toBe(201);
+    r = await call('planner', 'POST', '/routes/preview', { structureIds: [ids.s2] });
+    stop = r.json().stops.find((x: { structureId: string }) => x.structureId === ids.s2);
+    expect(stop.vehiclePoint?.lat).toBeCloseTo(-11.9215, 6);
+    expect(stop.vehiclePointFarKm).toBeNull();
+  });
 });
 
 describe('Reportes', () => {

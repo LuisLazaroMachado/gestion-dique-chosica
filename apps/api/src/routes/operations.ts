@@ -8,6 +8,9 @@ import { parse, toPoint } from '../util.js';
 import { optimizeRoute, routeInOrder, type Pt } from '../services/routing.js';
 import { z } from 'zod';
 
+/** Si el punto del vehículo queda a más de esta distancia del dique, se ignora (probable error o prueba hecha fuera de la zona). */
+export const VEHICLE_POINT_MAX_M = 2000;
+
 // Intervenciones y rutas: planificación operativa del responsable.
 
 async function syncInterventionStatus(db: Db, structureId: string, actorId: string) {
@@ -135,6 +138,7 @@ export async function operationsRoutes(app: FastifyInstance) {
       SELECT s.id, s.code, s.name, ST_Y(s.geom) AS lat, ST_X(s.geom) AS lon, s.location_label,
              li.id AS inspection_id, li.inspected_at, li.validation_status, li.access_status, li.access_notes,
              li.machinery_access, li.access_obstacles, ST_Y(li.vehicle_point) AS veh_lat, ST_X(li.vehicle_point) AS veh_lon,
+             ST_Distance(li.vehicle_point::geography, s.geom::geography) AS veh_dist_m,
              COALESCE((SELECT array_agg(e.id ORDER BY e.created_at) FROM evidence e
                         WHERE e.inspection_id = li.id AND e.evidence_type = 'acceso' AND e.upload_status = 'confirmada'), '{}') AS access_photo_ids
         FROM structures s
@@ -145,10 +149,15 @@ export async function operationsRoutes(app: FastifyInstance) {
     const noGeom = rows.filter((r) => r.lat == null);
     if (noGeom.length) throw badRequest(`Sin ubicación: ${noGeom.map((r) => r.code).join(', ')}`);
     const byId = new Map(rows.map((r) => [r.id as string, r]));
-    // Si el inspector marcó hasta dónde llega un vehículo, la ruta termina ahí (no en el dique).
-    const target = (r: Record<string, any>) => (r.veh_lat != null ? { lat: r.veh_lat, lon: r.veh_lon } : { lat: r.lat, lon: r.lon });
+    // Si el inspector marcó hasta dónde llega un vehículo, la ruta termina ahí (no en el dique),
+    // salvo que el punto esté demasiado lejos del dique: entonces se ignora y se avisa.
+    const target = (r: Record<string, any>) => (vehicleUsable(r) ? { lat: r.veh_lat, lon: r.veh_lon } : { lat: r.lat, lon: r.lon });
     return { rows, byId, pts: (list: string[]): Pt[] => list.map((i) => ({ id: i, ...target(byId.get(i)!) })) };
   }
+
+  const vehicleFar = (r: Record<string, any>) => r.veh_lat != null && Number(r.veh_dist_m) > VEHICLE_POINT_MAX_M;
+  const vehicleUsable = (r: Record<string, any>) => r.veh_lat != null && !vehicleFar(r);
+  const km = (m: unknown) => (Number(m) / 1000).toFixed(1).replace('.', ',');
 
   /** Lo que el responsable necesita para decidir sobre cada parada. */
   function stopInfo(rows: Array<Record<string, any>>) {
@@ -156,7 +165,10 @@ export async function operationsRoutes(app: FastifyInstance) {
       structureId: r.id, code: r.code, name: r.name, inspectionId: r.inspection_id, inspectedAt: r.inspected_at,
       validationStatus: r.validation_status, machineryAccess: r.machinery_access ?? null, accessObstacles: r.access_obstacles ?? [],
       accessStatus: r.access_status ?? null, accessNotes: r.access_notes ?? null,
-      vehiclePoint: r.veh_lat == null ? null : { lat: r.veh_lat, lon: r.veh_lon }, structurePoint: { lat: r.lat, lon: r.lon },
+      // Un punto lejano no se devuelve: no se usa en la ruta ni se dibuja en el mapa.
+      vehiclePoint: vehicleUsable(r) ? { lat: r.veh_lat, lon: r.veh_lon } : null,
+      vehiclePointFarKm: vehicleFar(r) ? Number(km(r.veh_dist_m).replace(',', '.')) : null,
+      structurePoint: { lat: r.lat, lon: r.lon },
       accessPhotoIds: r.access_photo_ids ?? [],
     }));
   }
@@ -167,7 +179,8 @@ export async function operationsRoutes(app: FastifyInstance) {
       if (r.machinery_access === 'No') notes.push(`${r.code}: el inspector reportó que la maquinaria NO llega. Revisa sus fotos antes de decidir.`);
       else if (r.machinery_access === 'Solo pequeña') notes.push(`${r.code}: solo llega maquinaria pequeña.`);
       else if (!r.machinery_access) notes.push(`${r.code}: todavía no hay información sobre el acceso de maquinaria.`);
-      if (r.veh_lat != null) notes.push(`${r.code}: la ruta llega hasta el último punto accesible en vehículo marcado por el inspector.`);
+      if (vehicleFar(r)) notes.push(`${r.code}: el punto del vehículo está lejos del dique (a ${km(r.veh_dist_m)} km); revísalo. La ruta llega hasta el dique.`);
+      else if (r.veh_lat != null) notes.push(`${r.code}: la ruta llega hasta el último punto accesible en vehículo marcado por el inspector.`);
     }
     return notes;
   }
